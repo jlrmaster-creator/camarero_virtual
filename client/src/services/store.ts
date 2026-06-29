@@ -171,13 +171,32 @@ export const store = {
     return local.localWaiters.getAll(activo);
   },
 
-  async createWaiter(nombre: string): Promise<Waiter> {
+  async createWaiter(nombre: string, authUid?: string): Promise<Waiter> {
     if (_source === 'firebase') {
       if (!_firebaseStore) throw new Error('Firebase store not initialized');
-      return _firebaseStore.waiters.create(nombre);
+      return _firebaseStore.waiters.create(nombre, authUid);
     }
     if (_source === 'api') return api.post<Waiter>('/waiters', { nombre });
     return local.localWaiters.create(nombre);
+  },
+
+  async updateWaiter(id: number, data: Partial<Pick<Waiter, 'nombre' | 'activo'>>): Promise<Waiter> {
+    if (_source === 'firebase') {
+      if (!_firebaseStore) throw new Error('Firebase store not initialized');
+      const w = await _firebaseStore.waiters.update(id, data);
+      if (!w) throw new Error('Waiter not found');
+      return w;
+    }
+    throw new Error('updateWaiter only supported in Firebase mode');
+  },
+
+  async deleteWaiter(id: number): Promise<void> {
+    if (_source === 'firebase') {
+      if (!_firebaseStore) throw new Error('Firebase store not initialized');
+      await _firebaseStore.waiters.remove(id);
+      return;
+    }
+    throw new Error('deleteWaiter only supported in Firebase mode');
   },
 
   async startWaiterShift(id: number): Promise<Waiter> {

@@ -8,6 +8,7 @@ import type { Waiter, CompanyUser } from '@/types/models';
 interface EditingWaiter {
   id: string;
   nombre: string;
+  activo: boolean;
 }
 
 export function AdminPage() {
@@ -46,7 +47,7 @@ export function AdminPage() {
   }, [loadData]);
 
   function getUser(waiter: Waiter): CompanyUser | undefined {
-    return companyUsers.find(u => u.id === String(waiter.id) || u.displayName === waiter.nombre);
+    return companyUsers.find(u => waiter.auth_uid ? u.id === waiter.auth_uid : u.displayName === waiter.nombre);
   }
 
   async function addWaiter() {
@@ -70,7 +71,7 @@ export function AdminPage() {
       const uid: string = body.localId;
 
       await Promise.all([
-        fsStore.waiters.create(newNombre.trim()),
+        fsStore.waiters.create(newNombre.trim(), uid),
         authService.addCompanyUser(company!.id, uid, newEmail.trim(), 'waiter', newNombre.trim()),
       ]);
 
@@ -119,6 +120,8 @@ export function AdminPage() {
       if (u) {
         await authService.updateCompanyUser(company.id, u.id, { eliminado: true });
       }
+      // Remove waiter document from Firestore
+      await fsStore.waiters.remove(Number(waiter.id));
       await loadData();
       setMsg('Camarero eliminado');
     } catch (err: unknown) {
@@ -129,7 +132,7 @@ export function AdminPage() {
   }
 
   function startEdit(waiter: Waiter) {
-    setEditing({ id: String(waiter.id), nombre: waiter.nombre });
+    setEditing({ id: String(waiter.id), nombre: waiter.nombre, activo: waiter.activo });
     setEditNombre(waiter.nombre);
     setEditPass('');
   }
@@ -139,13 +142,23 @@ export function AdminPage() {
     setBusy(true);
     setMsg('');
     try {
-      if (editPass.trim()) {
-        // Can't reset password from client without reauth - skip for now
-      }
+      const waiter = waiters.find(w => String(w.id) === editing.id);
+      if (!waiter) { setMsg('Camarero no encontrado'); setBusy(false); return; }
 
-      const u = getUser(waiters.find(w => String(w.id) === editing.id)!);
+      // Update auth user record
+      const u = getUser(waiter);
       if (u) {
         await authService.updateCompanyUser(company.id, u.id, { displayName: editNombre.trim() });
+      }
+
+      // Update waiter document in Firestore
+      await fsStore.waiters.update(Number(editing.id), {
+        nombre: editNombre.trim(),
+        activo: editing.activo,
+      });
+
+      if (editPass.trim()) {
+        // Can't reset password from client without reauth - skip for now
       }
 
       setEditing(null);
@@ -265,6 +278,15 @@ export function AdminPage() {
                             disabled={busy}
                           />
                         </div>
+                        <label className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={editing.activo}
+                            onChange={e => setEditing({ ...editing, activo: e.target.checked })}
+                            disabled={busy}
+                          />
+                          Activo (en turno)
+                        </label>
                         <div className="flex gap-2">
                           <button onClick={saveEdit} disabled={busy} className="bg-green-600 text-white text-xs px-3 py-1 rounded">
                             Guardar

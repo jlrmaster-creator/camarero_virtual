@@ -211,12 +211,27 @@ export function createFirestoreStore(companyId: string) {
         return docsData<Waiter>(snap);
       },
 
-      async create(nombre: string): Promise<Waiter> {
+      async create(nombre: string, authUid?: string): Promise<Waiter> {
         const database = getDb();
-        const ref = doc(col(database, companyId, WAITERS_COL));
-        const data = { nombre, activo: false, fecha_inicio: null, fecha_fin: null };
+        const ref = authUid
+          ? doc(database, 'companies', companyId, WAITERS_COL, authUid)
+          : doc(col(database, companyId, WAITERS_COL));
+        const data = { nombre, auth_uid: authUid ?? null, activo: false, fecha_inicio: null, fecha_fin: null };
         await setDoc(ref, data);
         return { id: parseInt(ref.id, 36), ...data } as unknown as Waiter;
+      },
+
+      async update(id: number, data: Partial<Pick<Waiter, 'nombre' | 'activo'>>): Promise<Waiter | undefined> {
+        const database = getDb();
+        const ref = docRef(database, companyId, WAITERS_COL, String(id));
+        await setDoc(ref, data, { merge: true });
+        const snap = await getDoc(ref);
+        return docData<Waiter>(snap);
+      },
+
+      async remove(id: number): Promise<void> {
+        const database = getDb();
+        await deleteDoc(docRef(database, companyId, WAITERS_COL, String(id)));
       },
 
       async startShift(id: number): Promise<Waiter | undefined> {

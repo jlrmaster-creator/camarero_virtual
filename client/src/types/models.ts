@@ -32,6 +32,7 @@ export interface Product {
 export interface Waiter {
   id: number;
   nombre: string;
+  auth_uid?: string;
   activo: boolean;
   fecha_inicio: string | null;
   fecha_fin: string | null;

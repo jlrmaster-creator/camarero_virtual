@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useWaiter } from '@/context/WaiterContext';
+import { useAuth } from '@/context/AuthContext';
 import { store } from '@/services/store';
 import type { Waiter } from '@/types/models';
 
 export function WaiterPage() {
   const { currentWaiter, setCurrentWaiter, activeWaiters, refresh } = useWaiter();
+  const { user, company } = useAuth();
   const [newName, setNewName] = useState('');
   const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
   const [showAll, setShowAll] = useState(false);
@@ -33,6 +35,8 @@ export function WaiterPage() {
     setCurrentWaiter(null);
     await refresh();
   };
+
+  const canSeeAdminOption = user && company;
 
   return (
     <div className="space-y-6">
@@ -66,6 +70,12 @@ export function WaiterPage() {
               ))}
             </div>
           )}
+
+          {canSeeAdminOption && (
+            <p className="text-xs text-slate-400 pt-2 border-t border-slate-700">
+              Si no encuentras tu nombre, créalo arriba o selecciónalo en &quot;Ver todos los camareros&quot;.
+            </p>
+          )}
         </div>
       )}
 
@@ -73,6 +83,9 @@ export function WaiterPage() {
         <div className="card space-y-3">
           <h2 className="font-semibold">Mi Jornada</h2>
           <p className="text-lg">{currentWaiter.nombre}</p>
+          <p className="text-xs text-slate-400">
+            Asignando mesas como: <span className="text-white">{currentWaiter.nombre}</span>
+          </p>
           <button onClick={() => endShift(currentWaiter.id)} className="btn-danger w-full">
             Cerrar Jornada
           </button>
@@ -90,11 +103,18 @@ export function WaiterPage() {
         <div className="card">
           <ul className="divide-y divide-slate-200 dark:divide-slate-700">
             {allWaiters.map(w => (
-              <li key={w.id} className="flex justify-between items-center py-2">
-                <span>{w.nombre}</span>
-                <span className={`text-sm ${w.activo ? 'text-green-500' : 'text-slate-400'}`}>
-                  {w.activo ? 'Activo' : 'Inactivo'}
-                </span>
+              <li key={w.id} className="flex justify-between items-center py-2 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="truncate">{w.nombre}</span>
+                  <span className={`text-xs shrink-0 ${w.activo ? 'text-green-500' : 'text-slate-500'}`}>
+                    {w.activo ? 'Activo' : 'Inactivo'}
+                  </span>
+                </div>
+                {!currentWaiter && !w.activo && (
+                  <button onClick={() => startShift(w.id)} className="btn-primary text-xs shrink-0">
+                    Trabajar
+                  </button>
+                )}
               </li>
             ))}
           </ul>

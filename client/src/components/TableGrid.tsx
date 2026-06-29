@@ -1,8 +1,8 @@
-import type { TableWithOccupation } from '@/services/tables';
 import { TableCard } from './TableCard';
+import type { TableWithMeta } from '@/hooks/useTables';
 
 interface TableGridProps {
-  tables: TableWithOccupation[];
+  tables: TableWithMeta[];
   loading: boolean;
   error: string | null;
 }

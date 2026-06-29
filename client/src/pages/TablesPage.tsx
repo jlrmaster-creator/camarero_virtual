@@ -3,7 +3,6 @@ import { ZoneTabs } from '@/components/ZoneTabs';
 import { TableGrid } from '@/components/TableGrid';
 import { useTables } from '@/hooks/useTables';
 import type { Zone } from '@/types/models';
-import type { TableWithOccupation } from '@/services/tables';
 
 export function TablesPage() {
   const [zone, setZone] = useState<Zone>('interior');
@@ -17,7 +16,7 @@ export function TablesPage() {
           {zone === 'interior' ? 'Interior' : 'Terraza'}
         </h1>
       </div>
-      <TableGrid tables={tables as unknown as TableWithOccupation[]} loading={loading} error={error} />
+      <TableGrid tables={tables} loading={loading} error={error} />
     </div>
   );
 }

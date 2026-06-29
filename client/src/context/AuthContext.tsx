@@ -36,32 +36,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const auth = getAuthInstance();
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        const c = await authService.getCompanyByUser(firebaseUser.uid);
-        setCompany(c);
-        if (c) {
-          const status = await authService.checkUserBlocked(c.id, firebaseUser.uid);
-          if (status.deleted || status.blocked) {
-            await authService.logOut();
-            setCompany(null);
-            setRole(null);
+      try {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          const c = await authService.getCompanyByUser(firebaseUser.uid);
+          setCompany(c);
+          if (c) {
+            const status = await authService.checkUserBlocked(c.id, firebaseUser.uid);
+            if (status.deleted || status.blocked) {
+              await authService.logOut();
+              setCompany(null);
+              setRole(null);
+              setFirebaseCompanyId(null);
+              return;
+            }
+            const r = await authService.getUserRole(c.id, firebaseUser.uid);
+            setRole(r);
+            setFirebaseCompanyId(c.id);
+          } else {
             setFirebaseCompanyId(null);
-            setLoading(false);
-            return;
           }
-          const r = await authService.getUserRole(c.id, firebaseUser.uid);
-          setRole(r);
-          setFirebaseCompanyId(c.id);
         } else {
+          setCompany(null);
+          setRole(null);
           setFirebaseCompanyId(null);
         }
-      } else {
-        setCompany(null);
-        setRole(null);
-        setFirebaseCompanyId(null);
+      } catch (err) {
+        console.error('Auth state change error:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return unsub;
   }, []);

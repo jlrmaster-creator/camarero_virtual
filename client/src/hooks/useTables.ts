@@ -1,56 +1,104 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { onSnapshot, collection, query, where, orderBy, type DocumentData } from 'firebase/firestore';
+import { onSnapshot, collection, query, where, orderBy, getDocs, type DocumentData } from 'firebase/firestore';
 import { store, getStoreSource } from '@/services/store';
 import { getDb } from '@/firebase/init';
 import { useAuth } from '@/context/AuthContext';
-import type { Zone } from '@/types/models';
+import { useWaiter } from '@/context/WaiterContext';
+import type { Zone, Occupation } from '@/types/models';
+
+interface TableWithMeta {
+  id: string;
+  zone: string;
+  numero: number;
+  nombre: string;
+  status: string;
+  occupation: Occupation | null;
+  blocked_by_other: boolean;
+  [key: string]: unknown;
+}
+
+async function fetchActiveOccupations(companyId: string): Promise<Map<string, Occupation>> {
+  const db = getDb();
+  const ref = collection(db, 'companies', companyId, 'occupations');
+  const q = query(ref, where('active', '==', true));
+  const snap = await getDocs(q);
+  const map = new Map<string, Occupation>();
+  snap.docs.forEach(d => {
+    const data = d.data() as Record<string, unknown>;
+    const tableId = String(data.table_id);
+    map.set(tableId, { id: d.id, ...data } as unknown as Occupation);
+  });
+  return map;
+}
 
 export function useTables(zone: Zone = 'interior') {
-  const [tables, setTables] = useState<Record<string, unknown>[]>([]);
+  const [tables, setTables] = useState<TableWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { company } = useAuth();
+  const { currentWaiter } = useWaiter();
   const source = getStoreSource();
   const isFirebase = source === 'firebase';
   const unsubRef = useRef<(() => void) | null>(null);
 
+  const enrichWithOccupations = useCallback(async (rawTables: Record<string, unknown>[]) => {
+    if (!company) return rawTables as TableWithMeta[];
+    const occMap = await fetchActiveOccupations(company.id);
+    return rawTables.map(t => {
+      const tid = String(t.id);
+      const occupation = occMap.get(tid) ?? null;
+      const blocked = occupation !== null && currentWaiter !== null && occupation.waiter_id !== null
+        && occupation.waiter_id !== currentWaiter.id;
+      return {
+        ...t,
+        occupation,
+        blocked_by_other: blocked,
+      } as TableWithMeta;
+    });
+  }, [company, currentWaiter]);
+
   const fetchTables = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await store.getTables(zone);
-      setTables(data);
+      const raw = await store.getTables(zone);
+      const enriched = await enrichWithOccupations(raw);
+      setTables(enriched);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error loading tables');
     } finally {
       setLoading(false);
     }
-  }, [zone]);
+  }, [zone, enrichWithOccupations]);
 
   useEffect(() => {
     if (!isFirebase) {
-      // Non-Firebase: fetch immediately
       fetchTables();
       return;
     }
 
-    // Firebase mode: wait for company before fetching/seeding
     if (!company) return;
 
-    // Fetch/seeds defaults if empty
     fetchTables();
 
-    // Subscribe to real-time updates
     const db = getDb();
     const ref = collection(db, 'companies', company.id, 'tables');
     const q = query(ref, where('zone', '==', zone), orderBy('numero'));
 
     unsubRef.current = onSnapshot(
       q,
-      (snap) => {
-        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
-        setTables(docs);
-        setLoading(false);
+      async (snap) => {
+        try {
+          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
+          const enriched = await enrichWithOccupations(docs);
+          setTables(enriched);
+        } catch {
+          // fallback: show raw data
+          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
+          setTables(docs as TableWithMeta[]);
+        } finally {
+          setLoading(false);
+        }
       },
       (err) => {
         setError(err.message);
@@ -64,9 +112,8 @@ export function useTables(zone: Zone = 'interior') {
         unsubRef.current = null;
       }
     };
-  }, [isFirebase, company?.id, zone, fetchTables]);
+  }, [isFirebase, company?.id, zone, fetchTables, enrichWithOccupations]);
 
-  // Polling fallback for non-Firebase mode — refresh every 5s
   useEffect(() => {
     if (isFirebase) return;
     const interval = setInterval(fetchTables, 5000);
@@ -75,3 +122,5 @@ export function useTables(zone: Zone = 'interior') {
 
   return { tables, loading, error, refetch: fetchTables };
 }
+
+export type { TableWithMeta };

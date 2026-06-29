@@ -60,10 +60,12 @@ service cloud.firestore {
           && request.auth.uid != userId; // Can't delete yourself
       }
 
-      // ── Waiters ───────────────────────────────────────────────────────
+      // ── Waiters (start/end shift, creation) ───────────────────────────
       match /waiters/{waiterId} {
         allow read: if isMember(companyId);
-        allow write: if isAdmin(companyId);
+        allow create: if isMember(companyId);
+        allow update: if isMember(companyId);
+        allow delete: if isAdmin(companyId);
       }
 
       // ── Tables ────────────────────────────────────────────────────────
