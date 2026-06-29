@@ -26,8 +26,11 @@ export function Layout() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-slate-800 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-lg font-bold">CamareroVirtual</span>
+          {isFirebase && user && (
+            <span className="text-sm text-blue-300">{user.email}</span>
+          )}
           <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
             {label}
           </span>

@@ -87,7 +87,7 @@ export function WaiterPage() {
                 const isMe = currentWaiter?.id === w.id;
                 return (
                   <div key={w.id} className="flex justify-between items-center p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                    <span>{w.nombre}{isMe ? ' (tú)' : ''}</span>
+                    <span>{w.nombre}{isMe ? ' (en uso)' : ''}</span>
                     <button
                       onClick={() => isMe ? endShift(w.id) : startShift(w.id)}
                       className={`text-sm px-3 py-1 rounded font-medium ${

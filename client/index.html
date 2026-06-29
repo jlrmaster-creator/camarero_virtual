@@ -8,36 +8,7 @@
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>CamareroVirtual</title>
-    <script>
-      // Auto-activate SW — runs before JS bundles load.
-      // Breaks the blank-page cycle: activates any waiting SW so fresh
-      // index.html is served on the next reload.
-      (function() {
-        if (!('serviceWorker' in navigator)) return;
-        var reloading = false;
-        navigator.serviceWorker.addEventListener('controllerchange', function() {
-          if (reloading) return;
-          reloading = true;
-          window.location.reload();
-        });
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('./sw.js').then(function(reg) {
-            if (reg.waiting) {
-              reg.waiting.postMessage('skip-waiting');
-            }
-            reg.addEventListener('updatefound', function() {
-              var sw = reg.installing;
-              if (!sw) return;
-              sw.addEventListener('statechange', function() {
-                if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                  sw.postMessage('skip-waiting');
-                }
-              });
-            });
-          });
-        });
-      })();
-    </script>
+
   </head>
   <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
     <div id="root"></div>

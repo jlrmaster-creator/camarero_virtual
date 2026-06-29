@@ -173,6 +173,25 @@ export function AdminPage() {
     }
   }
 
+  async function closeAllShifts() {
+    if (!fsStore || !company) return;
+    if (!window.confirm('¿Estás seguro de que quieres cerrar el turno de TODOS los camareros activos?')) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const activeWaitersList = waiters.filter(w => w.activo);
+      await Promise.all(
+        activeWaitersList.map(w => fsStore.waiters.update(Number(w.id), { activo: false }))
+      );
+      await loadData();
+      setMsg(`Se han cerrado ${activeWaitersList.length} turnos.`);
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al cerrar turnos');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const isAdmin = role === 'admin';
 
   const activeUsers = companyUsers.filter(u => !u.eliminado && u.role === 'waiter');
@@ -181,15 +200,15 @@ export function AdminPage() {
     <div className="max-w-3xl mx-auto p-4 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Administración</h1>
-          {company && <p className="text-slate-400 text-sm">{company.name}</p>}
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Configuración</h1>
+          {company && <p className="text-slate-500 dark:text-slate-400 text-sm">{company.name}</p>}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-400">
             {user?.email} ({role})
           </span>
-          <button onClick={logOut} className="text-sm text-red-400 hover:text-red-300">
-            Cerrar sesión
+          <button onClick={logOut} className="text-red-400 hover:text-red-300 p-2 rounded hover:bg-red-900/20 transition-colors" title="Cerrar sesión">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           </button>
         </div>
       </div>
@@ -244,9 +263,20 @@ export function AdminPage() {
           </section>
 
           <section className="bg-slate-800 rounded-xl p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-white">
-              Camareros ({activeUsers.length})
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-white">
+                Camareros ({activeUsers.length})
+              </h2>
+              {waiters.some(w => w.activo) && (
+                <button
+                  onClick={closeAllShifts}
+                  disabled={busy}
+                  className="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Cerrar todos los turnos
+                </button>
+              )}
+            </div>
 
             {activeUsers.length === 0 && (
               <p className="text-slate-500 text-sm text-center py-4">No hay camareros. Crea el primero arriba.</p>

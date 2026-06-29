@@ -34,7 +34,8 @@ service cloud.firestore {
     // ── User → Company lookup (avoid listing all companies) ──────────────
 
     match /userCompanies/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, update, delete: if request.auth.uid == userId;
+      allow create: if isAuthenticated();
     }
 
     // ── Companies ─────────────────────────────────────────────────────────
