@@ -5,20 +5,28 @@ Aplicación web progresiva (PWA) para la gestión de mesas de bares y restaurant
 ## Características
 
 - Gestión de 60 mesas (30 interior + 30 terraza) con pestañas independientes
-- Control de camareros por jornada laboral
-- Comandas con autocompletado de productos
-- Catálogo de productos con precios
+- Control de camareros por jornada laboral (inicio/fin de turno)
+- Comandas con autocompletado de productos desde catálogo
+- Catálogo de productos con precios editable
 - Auto-guardado en cada cambio
-- Generación de ticket PDF
+- Generación de ticket PDF (descarga / WhatsApp)
+- Informe de cierre de caja en PDF
+- Autenticación con Firebase (admin + camareros)
+- Roles: admin (gestión completa) y waiter (solo servicio)
+- Bloqueo de mesas entre camareros
+- Tres fuentes de datos: Firebase, API local, almacenamiento local
 - Modo claro/oscuro
 - Diseño responsive (móvil, tablet, escritorio)
 - Instalable como PWA en la pantalla de inicio
+- Recuperación automática ante actualizaciones del Service Worker
 
 ## Stack Tecnológico
 
 - **Frontend**: React 18, Vite 5, TypeScript, TailwindCSS
 - **Backend**: Node.js, Express, TypeScript
-- **Base de datos**: SQLite (better-sqlite3)
+- **Base de datos**: SQLite (better-sqlite3) — para modo API local
+- **Cloud**: Firebase Authentication + Firestore — para modo multidispositivo
+- **PWA**: Service Worker con estrategia network-first para HTML, cache-first para assets
 
 ## Instalación
 
@@ -30,7 +38,7 @@ cd camarero_virtual
 # Instalar dependencias
 npm install
 
-# Inicializar base de datos
+# Inicializar base de datos (modo local)
 npm run db:reset
 
 # Iniciar desarrollo
@@ -53,36 +61,68 @@ npm run dev
 ## Estructura del proyecto
 
 ```
-/client              # Frontend React
+/client              # Frontend React (Vite)
   /src
-    /components      # Componentes UI
+    /components      # Componentes UI reutilizables
     /pages           # Páginas de la aplicación
-    /hooks           # Hooks personalizados
-    /services        # Cliente API
-    /context         # Proveedores de contexto
-    /types           # Tipos TypeScript
-/server              # Backend Express
+    /hooks           # Hooks personalizados (useTables, etc.)
+    /services        # Cliente API, store, Firebase
+    /context         # Proveedores de contexto (Auth, DataSource, Waiter)
+    /types           # Tipos TypeScript compartidos
+    /firebase        # Configuración e inicialización de Firebase
+/public              # Assets estáticos, manifest, SW, recover.html
+/server              # Backend Express (opcional, para modo local)
   /src
     /routes          # Definiciones de rutas
     /controllers     # Manejadores de peticiones
-    /models          # Capa de acceso a datos
+    /models          # Capa de acceso a datos (better-sqlite3)
     /database        # Migraciones, semillas, conexión
     /middleware       # Middleware Express
-/public              # Assets estáticos, manifest, SW
+/.github/workflows   # CI/CD (deploy a GitHub Pages)
+firestore.rules      # Reglas de seguridad de Firestore
 ```
+
+## Fuentes de datos
+
+La aplicación detecta automáticamente la fuente disponible:
+
+1. **Firebase** (prioritaria) — Si hay credenciales de Firebase configuradas. Requiere autenticación.
+2. **API local** — Si el servidor Express está corriendo en local.
+3. **Local storage** — Fallback, datos en el navegador.
+
+## Autenticación
+
+- **Registro**: El primer usuario crea una empresa y queda como admin.
+- **Admin**: Puede crear camareros, gestionar productos, ver informes.
+- **Waiter**: Puede servir mesas, crear comandas, iniciar/cerrar turno.
+- Los usuarios bloqueados/eliminados no pueden acceder.
+
+## PWA / Service Worker
+
+- **Estrategia**: Network-first para navegaciones (HTML siempre fresco), cache-first para assets estáticos (JS, CSS, fuentes).
+- **Actualizaciones**: Cuando se detecta un nuevo SW, se muestra un toast con opción a actualizar. Si no hay interacción, se auto-actualiza a los 30s.
+- **Script inline**: El `index.html` incluye un script que activa automáticamente cualquier SW en espera, rompiendo el ciclo de página en blanco tras un deploy.
+- **Recuperación**: Navegar a `/recover.html` fuerza la activación del nuevo SW y redirige a la página principal.
+- **HTML no cacheado**: El install del SW solo precachea `manifest.json`. El HTML nunca se sirve desde caché.
+- **Clone seguro**: Las respuestas se clonan sincrónicamente para evitar el error "Response body already used".
+- **findInCaches**: Busca en todas las cachés (nuevas y viejas) antes de ir a red, dando un periodo de transición de 60s tras activación.
 
 ## Despliegue (GitHub Pages)
 
-Cada push a `main` despliega automáticamente el frontend en GitHub Pages mediante el workflow `.github/workflows/deploy.yml`.
+Cada push a `main` con código fuente (sin `[skip ci]`) dispara el workflow `.github/workflows/deploy.yml` que:
+1. Incrementa la versión en `client/package.json`
+2. Inyecta la versión en `public/sw.js`
+3. Construye el frontend con Vite
+4. Copia el build a `docs/`
+5. Commitea `docs/` y `client/package.json` con `[skip ci]`
+6. GitHub Pages despliega desde `main` → `/docs`
 
-1. Ir a Settings → Pages → Source: **GitHub Actions**
-2. El workflow construye el cliente con Vite y lo publica en la rama `gh-pages`
-3. La app se sirve en `https://jlrmaster-creator.github.io/camarero_virtual/`
+La app se sirve en `https://jlrmaster-creator.github.io/camarero_virtual/`
 
 > Nota: El backend (Express + SQLite) no se despliega en GitHub Pages.
-> Para producción completa, desplegar el servidor en un VPS o servicio que soporte Node.js.
+> En modo Firebase no es necesario backend propio.
 
-## API
+## API (modo local)
 
 Endpoints REST bajo `/api/`:
 

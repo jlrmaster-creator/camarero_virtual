@@ -75,7 +75,8 @@ npm run db:reset         # Drop + migrate + seed
   /middleware           # Express middleware
   /utils               # Server utilities
   /types               # Server-specific types
-/public                # Static assets, manifest, SW
+/public                # Static assets, manifest, SW, recover.html
+/firestore.rules       # Firestore Security Rules
 ```
 
 ### Imports
@@ -197,15 +198,22 @@ async getAllTables(req: Request, res: Response, next: NextFunction) {
 - `.gitignore` must exclude: `node_modules/`, `dist/`, `*.db`, `*.db-journal`, `.env`, `.DS_Store`
 
 ### PWA
-- Service worker in `/public/sw.js` (or generated via vite-plugin-pwa)
+- Service worker in `/public/sw.js` (custom, not generated)
 - Manifest at `/public/manifest.json` with short_name, icons, theme_color
-- Cache-first strategy for static assets; network-first for API calls
+- **Navigation (HTML)**: network-first, never cache HTML responses
+- **Static assets (JS, CSS)**: cache-first; clone synchronously to avoid race conditions
+- **API calls**: network-first with cache fallback
+- **Inline activation script**: in `client/index.html` — auto-activates waiting SW on load
+- **Recovery page**: `/public/recover.html` → forces SW activation and redirects to `/`
+- **findInCaches**: searches all caches (old + new) before network; old caches kept 60s after activation
+- **No HTML pre-caching**: `STATIC_URLS` only includes `./manifest.json` (no `index.html`)
 
 ### Deployment (GitHub Pages)
 - Workflow: `.github/workflows/deploy.yml`
 - Trigger: push to `main` branch
 - Builds client via `npm run build -w client`
-- Uses `actions/deploy-pages` to publish
-- Vite `base` is `/camarero_virtual/` in production (auto-detected via `NODE_ENV`)
-- Manifest, SW, and assets use relative paths (`.`) for subpath compatibility
-- **Important**: Backend is NOT deployed — only the static frontend. For full stack, deploy server separately.
+- Copies `client/dist` → `docs/`, commits with `[skip ci]`
+- GitHub Pages serves from `main` branch `/docs` folder (built-in, not actions/deploy-pages)
+- Vite `base` is `/camarero_virtual/` in production
+- Use `[skip ci]` in commit messages when committing `docs/` to prevent CI loop
+- **Important**: Backend is NOT deployed — only the static frontend
