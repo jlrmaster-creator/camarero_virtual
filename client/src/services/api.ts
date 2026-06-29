@@ -1,25 +1,30 @@
 const BASE_URL = '/api';
 
-interface ApiResponse<T> {
-  data: T;
-}
-
-interface ApiError {
-  error: { code: string; message: string };
+export class ApiError extends Error {
+  constructor(public status: number, code: string, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as ApiError;
-    throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${url}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+  } catch {
+    throw new ApiError(0, 'NETWORK_ERROR', 'No se puede conectar con el servidor');
   }
 
-  const body = await res.json() as ApiResponse<T>;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const err = body?.error as Record<string, string> | undefined;
+    throw new ApiError(res.status, err?.code ?? 'UNKNOWN', err?.message ?? `HTTP ${res.status}`);
+  }
+
+  const body = await res.json() as { data: T };
   return body.data;
 }
 

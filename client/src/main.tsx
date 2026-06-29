@@ -15,9 +15,11 @@ ReactDOM.createRoot(root).render(
   </React.StrictMode>,
 );
 
-// Register service worker
+// Register service worker (graceful failure)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // SW not available (e.g. GitHub Pages static deploy)
+    });
   });
 }

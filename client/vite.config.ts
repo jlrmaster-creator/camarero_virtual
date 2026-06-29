@@ -4,6 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/camarero_virtual/' : '/',
+  publicDir: path.resolve(__dirname, '../public'),
   plugins: [react()],
   resolve: {
     alias: {
