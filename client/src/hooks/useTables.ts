@@ -28,12 +28,19 @@ export function useTables(zone: Zone = 'interior') {
   }, [zone]);
 
   useEffect(() => {
-    // Always fetch first (seeds defaults if empty)
+    if (!isFirebase) {
+      // Non-Firebase: fetch immediately
+      fetchTables();
+      return;
+    }
+
+    // Firebase mode: wait for company before fetching/seeding
+    if (!company) return;
+
+    // Fetch/seeds defaults if empty
     fetchTables();
 
-    if (!isFirebase || !company) return;
-
-    // Firebase mode: also subscribe to real-time updates
+    // Subscribe to real-time updates
     const db = getDb();
     const ref = collection(db, 'companies', company.id, 'tables');
     const q = query(ref, where('zone', '==', zone), orderBy('numero'));
