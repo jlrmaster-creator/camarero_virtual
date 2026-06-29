@@ -10,23 +10,40 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_URLS)),
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))),
-    ),
-  );
-  self.clients.claim();
+  event.waitUntil(self.clients.claim());
+  // Defer old cache cleanup — avoid deleting caches that current pages still reference.
+  // Old caches remain available as fallback in the fetch handler.
+  // Cleanup happens 60s after activation to let in-flight requests finish.
+  setTimeout(() => {
+    caches.keys().then(allKeys => {
+      const oldKeys = allKeys.filter(k => k !== CACHE_NAME);
+      return Promise.all(oldKeys.map(k => caches.delete(k)));
+    });
+  }, 60000);
 });
+
+self.addEventListener('message', event => {
+  if (event.data === 'skip-waiting') {
+    self.skipWaiting();
+  }
+});
+
+async function findInCaches(request) {
+  const allKeys = await caches.keys();
+  for (const key of allKeys) {
+    const cached = await caches.open(key).then(c => c.match(request));
+    if (cached) return cached;
+  }
+  return null;
+}
 
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API requests: network-first, fallback to cache
   if (url.pathname.includes('/api/')) {
     event.respondWith(
       fetch(request).catch(() => caches.match(request)),
@@ -34,8 +51,18 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets: cache-first
   event.respondWith(
-    caches.match(request).then(cached => cached ?? fetch(request)),
+    caches.match(request).then(cached => {
+      if (cached) return cached;
+      return findInCaches(request).then(found => {
+        if (found) return found;
+        return fetch(request).then(response => {
+          if (response.ok && url.origin === self.location.origin) {
+            caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+          }
+          return response;
+        });
+      });
+    }),
   );
 });

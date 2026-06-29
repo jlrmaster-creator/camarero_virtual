@@ -18,7 +18,15 @@ ReactDOM.createRoot(root).render(
   </React.StrictMode>,
 );
 
-// ── Service Worker: update detection & force reload ────────────────────────
+// ── Service Worker: update detection & controlled activation ──────────────
+
+let swRegistration: ServiceWorkerRegistration | null = null;
+
+function sendToSW(msg: string) {
+  if (swRegistration?.waiting) {
+    swRegistration.waiting.postMessage(msg);
+  }
+}
 
 function showUpdateToast() {
   if (document.getElementById('sw-update-toast')) return;
@@ -37,11 +45,11 @@ function showUpdateToast() {
   ].join('');
   document.body.appendChild(toast);
 
-  const autoTimer = setTimeout(() => window.location.reload(), 30000);
+  const autoTimer = setTimeout(applyUpdate, 30000);
 
   document.getElementById('sw-update-btn')!.onclick = () => {
     clearTimeout(autoTimer);
-    window.location.reload();
+    applyUpdate();
   };
   document.getElementById('sw-dismiss-btn')!.onclick = () => {
     clearTimeout(autoTimer);
@@ -56,9 +64,17 @@ function showUpdateToast() {
   }
 }
 
+function applyUpdate() {
+  sendToSW('skip-waiting');
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(reg => {
+      swRegistration = reg;
       reg.addEventListener('updatefound', () => {
         const newSW = reg.installing;
         if (!newSW) return;
@@ -68,7 +84,6 @@ if ('serviceWorker' in navigator) {
           }
         };
         newSW.addEventListener('statechange', onStateChange);
-        // Check immediately in case state already changed before listener was attached
         onStateChange();
       });
     }).catch(() => {});
