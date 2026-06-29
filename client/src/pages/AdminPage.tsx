@@ -73,6 +73,7 @@ export function AdminPage() {
       await Promise.all([
         fsStore.waiters.create(newNombre.trim(), uid),
         authService.addCompanyUser(company!.id, uid, newEmail.trim(), 'waiter', newNombre.trim()),
+        authService.addUserCompanyLookup(uid, company!.id),
       ]);
 
       setNewNombre('');

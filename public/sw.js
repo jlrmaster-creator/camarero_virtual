@@ -51,6 +51,20 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Network-first for navigations (HTML) — ensures fresh index.html after SW update,
+  // preventing 404s on old JS chunks that were deleted from cache.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).then(response => {
+        caches.open(CACHE_NAME).then(cache => cache.put(url.href, response.clone()));
+        return response;
+      }).catch(() =>
+        caches.match(url.href).then(cached => cached ?? findInCaches(request)),
+      ),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;

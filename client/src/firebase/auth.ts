@@ -60,11 +60,24 @@ export async function createCompany(
     displayName: adminEmail.split('@')[0],
   });
 
+  // Create user → company lookup doc for fast path
+  await setDoc(doc(db, 'userCompanies', adminUid), { companyId: companyDoc.id });
+
   return companyDoc.id;
 }
 
 export async function getCompanyByUser(uid: string): Promise<Company | null> {
   const db = getDb();
+
+  // Fast path via userCompanies lookup doc
+  const lookupRef = doc(db, 'userCompanies', uid);
+  const lookupSnap = await getDoc(lookupRef);
+  if (lookupSnap.exists()) {
+    const { companyId } = lookupSnap.data() as { companyId: string };
+    return getCompanyById(companyId);
+  }
+
+  // Fallback: iterate all companies (legacy / rules not yet updated)
   const companiesRef = collection(db, 'companies');
   const snap = await getDocs(companiesRef);
   for (const companyDoc of snap.docs) {
@@ -124,6 +137,11 @@ export async function addCompanyUser(
   const db = getDb();
   const ref = doc(db, 'companies', companyId, 'users', uid);
   await setDoc(ref, { email, role, displayName, bloqueado: false, eliminado: false });
+}
+
+export async function addUserCompanyLookup(uid: string, companyId: string): Promise<void> {
+  const db = getDb();
+  await setDoc(doc(db, 'userCompanies', uid), { companyId });
 }
 
 export async function updateCompanyUser(
