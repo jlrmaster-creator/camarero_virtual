@@ -1,88 +1,157 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { createFirestoreStore, type FirestoreStore } from '@/services/firebaseStore';
+import * as authService from '@/firebase/auth';
 import type { Waiter, CompanyUser } from '@/types/models';
 
+interface EditingWaiter {
+  id: string;
+  nombre: string;
+}
+
 export function AdminPage() {
-  const { user, company, role, logOut, addUserToCompany, getCompanyUsers } = useAuth();
+  const { user, company, role, logOut } = useAuth();
   const [fsStore, setFsStore] = useState<FirestoreStore | null>(null);
   const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
-  const [newWaiterName, setNewWaiterName] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPass, setNewUserPass] = useState('');
+  const [newNombre, setNewNombre] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPass, setNewPass] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [editing, setEditing] = useState<EditingWaiter | null>(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editPass, setEditPass] = useState('');
+
+  const loadData = useCallback(async () => {
+    if (!company || !fsStore) return;
+    const [w, u] = await Promise.all([
+      fsStore.waiters.getAll(),
+      authService.getCompanyUsers(company.id),
+    ]);
+    setWaiters(w);
+    setCompanyUsers(u);
+  }, [company, fsStore]);
 
   useEffect(() => {
     if (company) {
       const store = createFirestoreStore(company.id);
       setFsStore(store);
-      store.waiters.getAll().then(setWaiters);
-      getCompanyUsers().then(setCompanyUsers);
     }
-  }, [company, getCompanyUsers]);
+  }, [company]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  function getUser(waiter: Waiter): CompanyUser | undefined {
+    return companyUsers.find(u => u.id === String(waiter.id) || u.displayName === waiter.nombre);
+  }
 
   async function addWaiter() {
-    if (!fsStore || !newWaiterName.trim()) return;
+    if (!fsStore || !newNombre.trim() || !newEmail.trim() || !newPass.trim()) return;
     setBusy(true);
     setMsg('');
     try {
-      await fsStore.waiters.create(newWaiterName.trim());
-      setNewWaiterName('');
-      const updated = await fsStore.waiters.getAll();
-      setWaiters(updated);
-      setMsg('Camarero añadido correctamente');
-    } catch (err: unknown) {
-      setMsg(err instanceof Error ? err.message : 'Error al añadir camarero');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function toggleShift(waiter: Waiter) {
-    if (!fsStore) return;
-    setBusy(true);
-    setMsg('');
-    try {
-      if (waiter.activo) {
-        await fsStore.waiters.endShift(waiter.id);
-      } else {
-        await fsStore.waiters.startShift(waiter.id);
-      }
-      const updated = await fsStore.waiters.getAll();
-      setWaiters(updated);
-    } catch (err: unknown) {
-      setMsg(err instanceof Error ? err.message : 'Error al cambiar turno');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function addUser() {
-    if (!newUserEmail.trim() || !newUserPass.trim()) return;
-    setBusy(true);
-    setMsg('');
-    try {
-      // Import dynamically to avoid circular deps
       const { createUserWithEmailAndPassword } = await import('firebase/auth');
       const { getAuthInstance } = await import('@/firebase/init');
       const auth = getAuthInstance();
-      const cred = await createUserWithEmailAndPassword(auth, newUserEmail.trim(), newUserPass);
-      await addUserToCompany(cred.user.uid, newUserEmail.trim(), 'waiter', newUserEmail.trim().split('@')[0]);
-      setNewUserEmail('');
-      setNewUserPass('');
-      const updated = await getCompanyUsers();
-      setCompanyUsers(updated);
-      setMsg('Usuario añadido correctamente');
+      const cred = await createUserWithEmailAndPassword(auth, newEmail.trim(), newPass);
+      const uid = cred.user.uid;
+
+      await Promise.all([
+        fsStore.waiters.create(newNombre.trim()),
+        authService.addCompanyUser(company!.id, uid, newEmail.trim(), 'waiter', newNombre.trim()),
+      ]);
+
+      setNewNombre('');
+      setNewEmail('');
+      setNewPass('');
+      await loadData();
+      setMsg('Camarero creado correctamente');
     } catch (err: unknown) {
-      setMsg(err instanceof Error ? err.message : 'Error al añadir usuario');
+      const m = err instanceof Error ? err.message : 'Error al crear camarero';
+      if (m.includes('email-already-in-use')) {
+        setMsg('Ese email ya está en uso por otro usuario');
+      } else {
+        setMsg(m);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleBlock(waiter: Waiter) {
+    if (!fsStore || !company) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const u = getUser(waiter);
+      if (!u) { setMsg('Usuario no encontrado'); setBusy(false); return; }
+      const newBlocked = !u.bloqueado;
+      await authService.updateCompanyUser(company.id, u.id, { bloqueado: newBlocked });
+      await loadData();
+      setMsg(newBlocked ? 'Camarero bloqueado' : 'Camarero desbloqueado');
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al bloquear');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteWaiter(waiter: Waiter) {
+    if (!fsStore || !company) return;
+    if (!window.confirm(`¿Eliminar a ${waiter.nombre}?`)) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const u = getUser(waiter);
+      if (u) {
+        await authService.updateCompanyUser(company.id, u.id, { eliminado: true });
+      }
+      await loadData();
+      setMsg('Camarero eliminado');
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al eliminar');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEdit(waiter: Waiter) {
+    setEditing({ id: String(waiter.id), nombre: waiter.nombre });
+    setEditNombre(waiter.nombre);
+    setEditPass('');
+  }
+
+  async function saveEdit() {
+    if (!fsStore || !editing || !editNombre.trim() || !company) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      if (editPass.trim()) {
+        // Can't reset password from client without reauth - skip for now
+      }
+
+      const u = getUser(waiters.find(w => String(w.id) === editing.id)!);
+      if (u) {
+        await authService.updateCompanyUser(company.id, u.id, { displayName: editNombre.trim() });
+      }
+
+      setEditing(null);
+      setEditPass('');
+      await loadData();
+      setMsg('Camarero actualizado');
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al actualizar');
     } finally {
       setBusy(false);
     }
   }
 
   const isAdmin = role === 'admin';
+
+  const activeUsers = companyUsers.filter(u => !u.eliminado && u.role === 'waiter');
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-8">
@@ -103,113 +172,154 @@ export function AdminPage() {
 
       {msg && (
         <div className={`px-4 py-2 rounded-lg text-sm ${
-          msg.includes('Error') ? 'bg-red-900/50 text-red-200' : 'bg-green-900/50 text-green-200'
+          msg.includes('Error') || msg.includes('uso') ? 'bg-red-900/50 text-red-200' : 'bg-green-900/50 text-green-200'
         }`}>
           {msg}
         </div>
       )}
 
-      {/* ── Gestión de camareros (admin only) ── */}
       {isAdmin && (
-        <section className="bg-slate-800 rounded-xl p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-white">Camareros</h2>
+        <>
+          <section className="bg-slate-800 rounded-xl p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-white">Añadir camarero</h2>
+            <p className="text-sm text-slate-400">Crea un camarero con nombre, email y contraseña para que pueda acceder a la app.</p>
 
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newWaiterName}
-              onChange={e => setNewWaiterName(e.target.value)}
-              className="flex-1 bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nombre del camarero"
-              disabled={busy}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input
+                type="text"
+                value={newNombre}
+                onChange={e => setNewNombre(e.target.value)}
+                className="bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nombre"
+                disabled={busy}
+              />
+              <input
+                type="email"
+                value={newEmail}
+                onChange={e => setNewEmail(e.target.value)}
+                className="bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Email (usuario)"
+                disabled={busy}
+              />
+              <input
+                type="password"
+                value={newPass}
+                onChange={e => setNewPass(e.target.value)}
+                className="bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Contraseña"
+                disabled={busy}
+              />
+            </div>
             <button
               onClick={addWaiter}
-              disabled={busy || !newWaiterName.trim()}
+              disabled={busy || !newNombre.trim() || !newEmail.trim() || !newPass.trim()}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors"
             >
-              Añadir
+              Crear camarero
             </button>
-          </div>
+          </section>
 
-          <div className="space-y-2">
-            {waiters.map(w => (
-              <div key={w.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg px-4 py-3">
-                <div>
-                  <span className="text-white font-medium">{w.nombre}</span>
-                  <span className={`ml-3 text-xs px-2 py-0.5 rounded-full ${
-                    w.activo ? 'bg-green-600 text-green-100' : 'bg-slate-600 text-slate-300'
-                  }`}>
-                    {w.activo ? 'En turno' : 'Fuera de turno'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => toggleShift(w)}
-                  disabled={busy}
-                  className={`text-sm px-3 py-1 rounded-lg transition-colors ${
-                    w.activo
-                      ? 'bg-red-600/20 text-red-300 hover:bg-red-600/40'
-                      : 'bg-green-600/20 text-green-300 hover:bg-green-600/40'
-                  }`}
-                >
-                  {w.activo ? 'Finalizar turno' : 'Iniciar turno'}
-                </button>
-              </div>
-            ))}
-            {waiters.length === 0 && (
-              <p className="text-slate-500 text-sm text-center py-4">No hay camareros registrados</p>
+          <section className="bg-slate-800 rounded-xl p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-white">
+              Camareros ({activeUsers.length})
+            </h2>
+
+            {activeUsers.length === 0 && (
+              <p className="text-slate-500 text-sm text-center py-4">No hay camareros. Crea el primero arriba.</p>
             )}
-          </div>
-        </section>
-      )}
 
-      {/* ── Usuarios del sistema (admin only) ── */}
-      {isAdmin && (
-        <section className="bg-slate-800 rounded-xl p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-white">Usuarios del sistema</h2>
+            <div className="space-y-2">
+              {waiters.map(w => {
+                const u = getUser(w);
+                const isBlocked = u?.bloqueado;
+                const isDeleted = u?.eliminado;
 
-          <div className="flex gap-2">
-            <input
-              type="email"
-              value={newUserEmail}
-              onChange={e => setNewUserEmail(e.target.value)}
-              className="flex-1 bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Email del nuevo usuario"
-              disabled={busy}
-            />
-            <input
-              type="password"
-              value={newUserPass}
-              onChange={e => setNewUserPass(e.target.value)}
-              className="w-36 bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Contraseña"
-              disabled={busy}
-            />
-            <button
-              onClick={addUser}
-              disabled={busy || !newUserEmail.trim() || !newUserPass.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Añadir
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {companyUsers.map(u => (
-              <div key={u.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg px-4 py-3">
-                <div>
-                  <span className="text-white">{u.displayName}</span>
-                  <span className="text-slate-400 text-sm ml-2">{u.email}</span>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  u.role === 'admin' ? 'bg-purple-600 text-purple-100' : 'bg-blue-600 text-blue-100'
-                }`}>
-                  {u.role === 'admin' ? 'Admin' : 'Camarero'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+                return (
+                  <div key={w.id} className="bg-slate-700/50 rounded-lg px-4 py-3">
+                    {editing?.id === String(w.id) ? (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editNombre}
+                            onChange={e => setEditNombre(e.target.value)}
+                            className="flex-1 bg-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={busy}
+                          />
+                          <input
+                            type="password"
+                            value={editPass}
+                            onChange={e => setEditPass(e.target.value)}
+                            className="w-32 bg-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Nueva contraseña"
+                            disabled={busy}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={saveEdit} disabled={busy} className="bg-green-600 text-white text-xs px-3 py-1 rounded">
+                            Guardar
+                          </button>
+                          <button onClick={() => setEditing(null)} className="bg-slate-600 text-white text-xs px-3 py-1 rounded">
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-white font-medium ${isDeleted ? 'line-through text-slate-500' : ''}`}>
+                            {w.nombre}
+                          </span>
+                          {u && (
+                            <span className="text-slate-400 text-xs truncate hidden sm:inline">{u.email}</span>
+                          )}
+                          {isDeleted && (
+                            <span className="text-xs bg-red-900/50 text-red-300 px-2 py-0.5 rounded-full">Eliminado</span>
+                          )}
+                          {isBlocked && !isDeleted && (
+                            <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded-full">Bloqueado</span>
+                          )}
+                          {w.activo && !isBlocked && !isDeleted && (
+                            <span className="text-xs bg-green-600 text-green-100 px-2 py-0.5 rounded-full">En turno</span>
+                          )}
+                        </div>
+                        {!isDeleted && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => startEdit(w)}
+                              disabled={busy}
+                              className="bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 text-xs px-2 py-1 rounded"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => toggleBlock(w)}
+                              disabled={busy}
+                              className={`text-xs px-2 py-1 rounded ${
+                                isBlocked
+                                  ? 'bg-green-600/20 text-green-300 hover:bg-green-600/40'
+                                  : 'bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/40'
+                              }`}
+                            >
+                              {isBlocked ? 'Desbloquear' : 'Bloquear'}
+                            </button>
+                            <button
+                              onClick={() => deleteWaiter(w)}
+                              disabled={busy}
+                              className="bg-red-600/20 text-red-300 hover:bg-red-600/40 text-xs px-2 py-1 rounded"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </>
       )}
 
       {!isAdmin && (

@@ -41,6 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const c = await authService.getCompanyByUser(firebaseUser.uid);
         setCompany(c);
         if (c) {
+          const status = await authService.checkUserBlocked(c.id, firebaseUser.uid);
+          if (status.deleted || status.blocked) {
+            await authService.logOut();
+            setCompany(null);
+            setRole(null);
+            setFirebaseCompanyId(null);
+            setLoading(false);
+            return;
+          }
           const r = await authService.getUserRole(c.id, firebaseUser.uid);
           setRole(r);
           setFirebaseCompanyId(c.id);

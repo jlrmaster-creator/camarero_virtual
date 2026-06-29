@@ -35,6 +35,9 @@ export interface Waiter {
   activo: boolean;
   fecha_inicio: string | null;
   fecha_fin: string | null;
+  email?: string;
+  bloqueado?: boolean;
+  eliminado?: boolean;
 }
 
 export interface Session {
@@ -59,6 +62,8 @@ export interface CompanyUser {
   email: string;
   role: UserRole;
   displayName: string;
+  bloqueado?: boolean;
+  eliminado?: boolean;
 }
 
 export interface Report {

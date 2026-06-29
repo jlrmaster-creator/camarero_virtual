@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+
+const VERSION = 'v2.0.0';
 
 type Mode = 'login' | 'register';
 
@@ -35,7 +37,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 px-4">
       <div className="w-full max-w-md bg-slate-800 rounded-xl p-8 shadow-lg">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-white">Camarero Virtual</h1>
@@ -118,6 +120,10 @@ export function LoginPage() {
           )}
         </div>
       </div>
+
+      <p className="mt-8 text-xs text-slate-500 text-center">
+        Created by: José López-Romero Moraleda — {VERSION}
+      </p>
     </div>
   );
 }

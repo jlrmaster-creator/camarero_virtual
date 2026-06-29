@@ -7,12 +7,10 @@ import {
 import {
   doc,
   setDoc,
+  updateDoc,
   getDoc,
   getDocs,
   collection,
-  query,
-  where,
-  Timestamp,
   serverTimestamp,
 } from 'firebase/firestore';
 import { getAuthInstance, getDb } from './init';
@@ -69,7 +67,6 @@ export async function getCompanyByUser(uid: string): Promise<Company | null> {
   const db = getDb();
   const companiesRef = collection(db, 'companies');
   const snap = await getDocs(companiesRef);
-  // Find the company where this user has a user doc
   for (const companyDoc of snap.docs) {
     const userRef = doc(db, 'companies', companyDoc.id, 'users', uid);
     const userSnap = await getDoc(userRef);
@@ -104,12 +101,17 @@ export async function getCompanyUsers(companyId: string): Promise<CompanyUser[]>
   const db = getDb();
   const ref = collection(db, 'companies', companyId, 'users');
   const snap = await getDocs(ref);
-  return snap.docs.map(d => ({
-    id: d.id,
-    email: d.data().email,
-    role: d.data().role as UserRole,
-    displayName: d.data().displayName,
-  }));
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      email: data.email ?? '',
+      role: data.role as UserRole,
+      displayName: data.displayName ?? '',
+      bloqueado: data.bloqueado ?? false,
+      eliminado: data.eliminado ?? false,
+    };
+  });
 }
 
 export async function addCompanyUser(
@@ -121,7 +123,17 @@ export async function addCompanyUser(
 ): Promise<void> {
   const db = getDb();
   const ref = doc(db, 'companies', companyId, 'users', uid);
-  await setDoc(ref, { email, role, displayName });
+  await setDoc(ref, { email, role, displayName, bloqueado: false, eliminado: false });
+}
+
+export async function updateCompanyUser(
+  companyId: string,
+  uid: string,
+  data: Partial<{ displayName: string; bloqueado: boolean; eliminado: boolean }>,
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, 'companies', companyId, 'users', uid);
+  await updateDoc(ref, data);
 }
 
 export async function getUserRole(
@@ -133,4 +145,19 @@ export async function getUserRole(
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   return snap.data().role as UserRole;
+}
+
+export async function checkUserBlocked(
+  companyId: string,
+  uid: string,
+): Promise<{ blocked: boolean; deleted: boolean }> {
+  const db = getDb();
+  const ref = doc(db, 'companies', companyId, 'users', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return { blocked: false, deleted: true };
+  const data = snap.data();
+  return {
+    blocked: data.bloqueado ?? false,
+    deleted: data.eliminado ?? false,
+  };
 }
