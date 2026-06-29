@@ -7,12 +7,32 @@ export class ApiError extends Error {
   }
 }
 
+function getSessionHeaders(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem('camarero_session');
+    if (raw) {
+      const session = JSON.parse(raw);
+      if (session?.codigo) {
+        return { 'X-Session-Code': session.codigo };
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
+    const { headers: optHeaders, ...restOptions } = options ?? {};
     res = await fetch(`${BASE_URL}${url}`, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options,
+      ...restOptions,
+      headers: {
+        'Content-Type': 'application/json',
+        ...getSessionHeaders(),
+        ...(optHeaders as Record<string, string> ?? {}),
+      },
     });
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', 'No se puede conectar con el servidor');

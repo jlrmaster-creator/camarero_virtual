@@ -36,3 +36,10 @@ export interface Waiter {
   fecha_inicio: string | null;
   fecha_fin: string | null;
 }
+
+export interface Session {
+  id: number;
+  codigo: string;
+  activa: boolean;
+  fecha_creacion: string;
+}

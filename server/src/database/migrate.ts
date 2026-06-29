@@ -13,10 +13,18 @@ export function runMigrations(): void {
       UNIQUE(zone, numero)
     );
 
+    CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      codigo TEXT NOT NULL UNIQUE,
+      activa INTEGER NOT NULL DEFAULT 1,
+      fecha_creacion TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS waiters (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL UNIQUE,
       activo INTEGER NOT NULL DEFAULT 0,
+      session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
       fecha_inicio TEXT,
       fecha_fin TEXT
     );
@@ -25,6 +33,7 @@ export function runMigrations(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       table_id INTEGER NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
       waiter_id INTEGER REFERENCES waiters(id) ON DELETE SET NULL,
+      session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
       cliente TEXT NOT NULL DEFAULT '',
       comensales INTEGER NOT NULL DEFAULT 1,
       nota TEXT NOT NULL DEFAULT '',
@@ -44,10 +53,23 @@ export function runMigrations(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       table_id INTEGER NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
       waiter_id INTEGER REFERENCES waiters(id) ON DELETE SET NULL,
+      session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
       total REAL NOT NULL,
       fecha_cierre TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Add session_id columns to existing tables if missing (safe for re-runs)
+  const addColumn = (table: string, column: string, def: string) => {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+    } catch {
+      // Column already exists
+    }
+  };
+  addColumn('waiters', 'session_id', 'INTEGER REFERENCES sessions(id) ON DELETE CASCADE');
+  addColumn('occupations', 'session_id', 'INTEGER REFERENCES sessions(id) ON DELETE CASCADE');
+  addColumn('billing_history', 'session_id', 'INTEGER REFERENCES sessions(id) ON DELETE CASCADE');
 
   console.log('Migrations completed successfully.');
 }

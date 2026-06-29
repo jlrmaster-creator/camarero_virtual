@@ -5,8 +5,9 @@ export const waitersRouter = Router();
 
 waitersRouter.get('/', (req, res, next) => {
   try {
+    const sessionId = (req as unknown as Record<string, unknown>).sessionId as number | undefined;
     const activo = req.query.activo === 'true' ? true : req.query.activo === 'false' ? false : undefined;
-    const waiters = waiterModel.findAll(activo);
+    const waiters = waiterModel.findAll(sessionId, activo);
     res.json({ data: waiters });
   } catch (err) {
     next(err);
@@ -15,8 +16,9 @@ waitersRouter.get('/', (req, res, next) => {
 
 waitersRouter.post('/', (req, res, next) => {
   try {
+    const sessionId = (req as unknown as Record<string, unknown>).sessionId as number | undefined;
     const { nombre } = req.body;
-    const waiter = waiterModel.create({ nombre });
+    const waiter = waiterModel.create({ nombre, session_id: sessionId });
     res.status(201).json({ data: waiter });
   } catch (err) {
     next(err);

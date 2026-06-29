@@ -7,6 +7,7 @@ export const occupationsRouter = Router();
 
 occupationsRouter.post('/', (req, res, next) => {
   try {
+    const sessionId = (req as unknown as Record<string, unknown>).sessionId as number | undefined;
     const { table_id, waiter_id, cliente, comensales, nota } = req.body;
     const table = tableModel.findById(table_id);
     if (!table) throw new AppError(404, 'NOT_FOUND', 'Table not found');
@@ -14,7 +15,7 @@ occupationsRouter.post('/', (req, res, next) => {
     const existing = occupationModel.findByTableId(table_id);
     if (existing) throw new AppError(409, 'CONFLICT', 'Table already has an active occupation');
 
-    const occupation = occupationModel.create({ table_id, waiter_id, cliente, comensales, nota });
+    const occupation = occupationModel.create({ table_id, waiter_id, session_id: sessionId, cliente, comensales, nota });
     tableModel.update(table_id, { status: 'occupied' });
 
     res.status(201).json({ data: occupation });

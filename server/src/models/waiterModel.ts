@@ -3,15 +3,26 @@ import type { WaiterRow } from '@/types/models';
 
 export interface CreateWaiterParams {
   nombre: string;
+  session_id?: number;
 }
 
 export const waiterModel = {
-  findAll(activo?: boolean): WaiterRow[] {
+  findAll(sessionId?: number, activo?: boolean): WaiterRow[] {
     const db = getDb();
-    if (activo !== undefined) {
-      return db.prepare('SELECT * FROM waiters WHERE activo = ? ORDER BY nombre').all(activo ? 1 : 0) as WaiterRow[];
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+
+    if (sessionId) {
+      conditions.push('session_id = ?');
+      values.push(sessionId);
     }
-    return db.prepare('SELECT * FROM waiters ORDER BY nombre').all() as WaiterRow[];
+    if (activo !== undefined) {
+      conditions.push('activo = ?');
+      values.push(activo ? 1 : 0);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    return db.prepare(`SELECT * FROM waiters ${where} ORDER BY nombre`).all(...values) as WaiterRow[];
   },
 
   findById(id: number): WaiterRow | undefined {
@@ -21,7 +32,9 @@ export const waiterModel = {
 
   create(params: CreateWaiterParams): WaiterRow {
     const db = getDb();
-    const result = db.prepare('INSERT INTO waiters (nombre) VALUES (?)').run(params.nombre);
+    const result = db.prepare('INSERT INTO waiters (nombre, session_id) VALUES (?, ?)').run(
+      params.nombre, params.session_id ?? null,
+    );
     return this.findById(result.lastInsertRowid as number)!;
   },
 

@@ -4,6 +4,7 @@ import type { OccupationRow } from '@/types/models';
 export interface CreateOccupationParams {
   table_id: number;
   waiter_id?: number | null;
+  session_id?: number;
   cliente?: string;
   comensales?: number;
   nota?: string;
@@ -45,11 +46,12 @@ export const occupationModel = {
   create(params: CreateOccupationParams): OccupationRow {
     const db = getDb();
     const result = db.prepare(`
-      INSERT INTO occupations (table_id, waiter_id, cliente, comensales, nota)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO occupations (table_id, waiter_id, session_id, cliente, comensales, nota)
+      VALUES (?, ?, ?, ?, ?, ?)
     `).run(
       params.table_id,
       params.waiter_id ?? null,
+      params.session_id ?? null,
       params.cliente ?? '',
       params.comensales ?? 1,
       params.nota ?? '',
