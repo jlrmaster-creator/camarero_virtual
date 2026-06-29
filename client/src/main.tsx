@@ -5,6 +5,30 @@ import { App } from './App';
 import { initFirebase } from '@/firebase/init';
 import './index.css';
 
+// ── Global error reporting (remove after debugging mobile blank screen) ──
+
+window.addEventListener('error', (event) => {
+  const el = document.getElementById('global-error-log') ?? (() => {
+    const d = document.createElement('pre');
+    d.id = 'global-error-log';
+    d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#1e293b;color:#ef4444;padding:12px;font-size:12px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all;border-top:2px solid #ef4444;font-family:monospace';
+    document.body.appendChild(d);
+    return d;
+  })();
+  el.textContent += `[${new Date().toLocaleTimeString()}] ${event.message}\n${event.error?.stack ?? ''}\n\n`;
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  const el = document.getElementById('global-error-log') ?? (() => {
+    const d = document.createElement('pre');
+    d.id = 'global-error-log';
+    d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#1e293b;color:#ef4444;padding:12px;font-size:12px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all;border-top:2px solid #ef4444;font-family:monospace';
+    document.body.appendChild(d);
+    return d;
+  })();
+  el.textContent += `[${new Date().toLocaleTimeString()}] Unhandled Promise: ${event.reason?.message ?? event.reason}\n${event.reason?.stack ?? ''}\n\n`;
+});
+
 initFirebase();
 
 const root = document.getElementById('root');

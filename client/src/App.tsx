@@ -3,6 +3,7 @@ import { DataSourceProvider, useDataSource } from '@/context/DataSourceContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { WaiterProvider } from '@/context/WaiterContext';
 import { Layout } from '@/components/Layout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TablesPage } from '@/pages/TablesPage';
 import { TableDetailPage } from '@/pages/TableDetailPage';
 import { ConfigPage } from '@/pages/ConfigPage';
@@ -57,12 +58,14 @@ function AppRoutes() {
 
 export function App() {
   return (
-    <DataSourceProvider>
-      <AuthProvider>
-        <WaiterProvider>
-          <AppRoutes />
-        </WaiterProvider>
-      </AuthProvider>
-    </DataSourceProvider>
+    <ErrorBoundary>
+      <DataSourceProvider>
+        <AuthProvider>
+          <WaiterProvider>
+            <AppRoutes />
+          </WaiterProvider>
+        </AuthProvider>
+      </DataSourceProvider>
+    </ErrorBoundary>
   );
 }
