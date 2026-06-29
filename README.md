@@ -71,6 +71,17 @@ npm run dev
 /public              # Assets estáticos, manifest, SW
 ```
 
+## Despliegue (GitHub Pages)
+
+Cada push a `main` despliega automáticamente el frontend en GitHub Pages mediante el workflow `.github/workflows/deploy.yml`.
+
+1. Ir a Settings → Pages → Source: **GitHub Actions**
+2. El workflow construye el cliente con Vite y lo publica en la rama `gh-pages`
+3. La app se sirve en `https://jlrmaster-creator.github.io/camarero_virtual/`
+
+> Nota: El backend (Express + SQLite) no se despliega en GitHub Pages.
+> Para producción completa, desplegar el servidor en un VPS o servicio que soporte Node.js.
+
 ## API
 
 Endpoints REST bajo `/api/`:

@@ -200,3 +200,12 @@ async getAllTables(req: Request, res: Response, next: NextFunction) {
 - Service worker in `/public/sw.js` (or generated via vite-plugin-pwa)
 - Manifest at `/public/manifest.json` with short_name, icons, theme_color
 - Cache-first strategy for static assets; network-first for API calls
+
+### Deployment (GitHub Pages)
+- Workflow: `.github/workflows/deploy.yml`
+- Trigger: push to `main` branch
+- Builds client via `npm run build -w client`
+- Uses `actions/deploy-pages` to publish
+- Vite `base` is `/camarero_virtual/` in production (auto-detected via `NODE_ENV`)
+- Manifest, SW, and assets use relative paths (`.`) for subpath compatibility
+- **Important**: Backend is NOT deployed — only the static frontend. For full stack, deploy server separately.
