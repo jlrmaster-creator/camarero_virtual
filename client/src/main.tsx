@@ -18,11 +18,42 @@ ReactDOM.createRoot(root).render(
   </React.StrictMode>,
 );
 
-// Register service worker (graceful failure)
+// Register service worker with update detection
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {
-      // SW not available (e.g. GitHub Pages static deploy)
-    });
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            const toast = document.createElement('div');
+            toast.id = 'sw-update-toast';
+            toast.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:#1e293b;color:#fff;padding:12px 20px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:12px;font-family:system-ui,sans-serif;font-size:14px;animation:fadeInUp .3s ease';
+            toast.innerHTML = [
+              '<span>Nueva versi\u00f3n disponible</span>',
+              '<button id="sw-update-btn" style="background:#3b82f6;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Actualizar</button>',
+              '<button id="sw-dismiss-btn" style="background:transparent;color:#94a3b8;border:none;cursor:pointer;font-size:18px;padding:0 4px">&times;</button>',
+            ].join('');
+            document.body.appendChild(toast);
+
+            const autoTimer = setTimeout(() => window.location.reload(), 30000);
+
+            document.getElementById('sw-update-btn')!.onclick = () => {
+              clearTimeout(autoTimer);
+              window.location.reload();
+            };
+            document.getElementById('sw-dismiss-btn')!.onclick = () => {
+              clearTimeout(autoTimer);
+              toast.remove();
+            };
+
+            const style = document.createElement('style');
+            style.textContent = '@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
+            document.head.appendChild(style);
+          }
+        });
+      });
+    }).catch(() => {});
   });
 }
