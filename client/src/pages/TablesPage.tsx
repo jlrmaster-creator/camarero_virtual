@@ -7,7 +7,7 @@ import type { TableWithOccupation } from '@/services/tables';
 
 export function TablesPage() {
   const [zone, setZone] = useState<Zone>('interior');
-  const { tables, loading, error, refetch } = useTables(zone);
+  const { tables, loading, error } = useTables(zone);
 
   return (
     <div>
@@ -16,9 +16,6 @@ export function TablesPage() {
         <h1 className="text-xl font-bold">
           {zone === 'interior' ? 'Interior' : 'Terraza'}
         </h1>
-        <button onClick={() => refetch()} className="btn-primary text-sm">
-          Actualizar
-        </button>
       </div>
       <TableGrid tables={tables as unknown as TableWithOccupation[]} loading={loading} error={error} />
     </div>
