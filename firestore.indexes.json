@@ -1,0 +1,35 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "tables",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "zone", "order": "ASCENDING" },
+        { "fieldPath": "numero", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "occupations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "table_id", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "waiters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "activo", "order": "ASCENDING" },
+        { "fieldPath": "nombre", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "nombre", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}
