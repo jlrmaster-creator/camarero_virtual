@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { productsService } from '@/services/products';
+import { store } from '@/services/store';
 import type { Product } from '@/types/models';
 
 interface ProductAutocompleteProps {
@@ -20,7 +20,7 @@ export function ProductAutocomplete({ value, onChange, onAddProduct }: ProductAu
     const searchTerm = words[words.length - 1];
 
     if (searchTerm.length >= 2) {
-      productsService.getAll(searchTerm).then(setSuggestions).catch(() => setSuggestions([]));
+      store.getProducts(searchTerm).then(setSuggestions).catch(() => setSuggestions([]));
     } else {
       setSuggestions([]);
     }

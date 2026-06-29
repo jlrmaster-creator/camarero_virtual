@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWaiter } from '@/context/WaiterContext';
-import { waitersService } from '@/services/waiters';
+import { store } from '@/services/store';
 import type { Waiter } from '@/types/models';
 
 export function WaiterPage() {
@@ -10,26 +10,26 @@ export function WaiterPage() {
   const [showAll, setShowAll] = useState(false);
 
   const fetchAll = async () => {
-    const data = await waitersService.getAll();
+    const data = await store.getWaiters();
     setAllWaiters(data);
   };
 
   const addWaiter = async () => {
     if (!newName.trim()) return;
-    await waitersService.create(newName.trim());
+    await store.createWaiter(newName.trim());
     setNewName('');
     await refresh();
     await fetchAll();
   };
 
   const startShift = async (id: number) => {
-    const waiter = await waitersService.startShift(id);
+    const waiter = await store.startWaiterShift(id);
     setCurrentWaiter(waiter);
     await refresh();
   };
 
   const endShift = async (id: number) => {
-    await waitersService.endShift(id);
+    await store.endWaiterShift(id);
     setCurrentWaiter(null);
     await refresh();
   };

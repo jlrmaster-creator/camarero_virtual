@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const c = await authService.getCompanyById(companyId);
       setCompany(c);
       setRole('admin');
+      setFirebaseCompanyId(companyId);
     },
     [],
   );
