@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { waitersService } from '@/services/waiters';
+import { store } from '@/services/store';
 import type { Waiter } from '@/types/models';
 
 interface WaiterContextType {
@@ -16,8 +16,12 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
   const [activeWaiters, setActiveWaiters] = useState<Waiter[]>([]);
 
   const refresh = async () => {
-    const waiters = await waitersService.getAll(true);
-    setActiveWaiters(waiters);
+    try {
+      const waiters = await store.getWaiters(true);
+      setActiveWaiters(waiters);
+    } catch {
+      // ignore
+    }
   };
 
   useEffect(() => {

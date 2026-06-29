@@ -1,41 +1,82 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { SessionProvider, useSession } from '@/context/SessionContext';
+import { useEffect, useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { DataSourceProvider, useDataSource } from '@/context/DataSourceContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { initFirebase } from '@/firebase/init';
 import { WaiterProvider } from '@/context/WaiterContext';
 import { Layout } from '@/components/Layout';
-import { SessionPage } from '@/pages/SessionPage';
 import { TablesPage } from '@/pages/TablesPage';
 import { TableDetailPage } from '@/pages/TableDetailPage';
 import { ConfigPage } from '@/pages/ConfigPage';
 import { WaiterPage } from '@/pages/WaiterPage';
+import { LoginPage } from '@/pages/LoginPage';
+import { AdminPage } from '@/pages/AdminPage';
+
+function LoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4" />
+      <p className="text-slate-400">{label}</p>
+    </div>
+  );
+}
 
 function AppRoutes() {
-  const { session } = useSession();
-  const location = useLocation();
+  const { checked, label, source } = useDataSource();
+  const { user, company, loading: authLoading } = useAuth();
+  const [firebaseReady, setFirebaseReady] = useState(false);
 
-  if (!session && location.pathname !== '/session') {
-    return <Navigate to="/session" replace />;
+  useEffect(() => {
+    if (checked) {
+      const ok = initFirebase();
+      setFirebaseReady(true);
+    }
+  }, [checked]);
+
+  if (!checked) {
+    return <LoadingScreen label="Detectando modo de conexión..." />;
+  }
+
+  if (!firebaseReady) {
+    return <LoadingScreen label="Inicializando..." />;
+  }
+
+  // Firebase mode requires authentication
+  if (source === 'firebase') {
+    if (authLoading) {
+      return <LoadingScreen label="Verificando sesión..." />;
+    }
+    if (!user) {
+      return <LoginPage />;
+    }
+    // Logged in but no company → let them register one
+    // (handled inside LoginPage via the registerCompany function)
   }
 
   return (
     <Routes>
-      <Route path="/session" element={<SessionPage />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/tables" replace />} />
         <Route path="/tables" element={<TablesPage />} />
         <Route path="/tables/:id" element={<TableDetailPage />} />
         <Route path="/config" element={<ConfigPage />} />
         <Route path="/waiter" element={<WaiterPage />} />
+        <Route path="/admin" element={source === 'firebase' ? <AdminPage /> : <Navigate to="/tables" replace />} />
       </Route>
+      {/* Login is rendered outside Layout when unauthenticated */}
+      {source !== 'firebase' && <Route path="/login" element={<LoginPage />} />}
     </Routes>
   );
 }
 
 export function App() {
   return (
-    <SessionProvider>
-      <WaiterProvider>
-        <AppRoutes />
-      </WaiterProvider>
-    </SessionProvider>
+    <DataSourceProvider>
+      <AuthProvider>
+        <WaiterProvider>
+          <AppRoutes />
+        </WaiterProvider>
+      </AuthProvider>
+    </DataSourceProvider>
   );
 }

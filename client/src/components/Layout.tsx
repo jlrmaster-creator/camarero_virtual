@@ -1,41 +1,46 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink } from 'react-router-dom';
+import { useDataSource } from '@/context/DataSourceContext';
 import { useWaiter } from '@/context/WaiterContext';
-import { useSession } from '@/context/SessionContext';
-
-const navItems = [
-  { to: '/tables', label: 'Mesas' },
-  { to: '/config', label: 'Config' },
-  { to: '/waiter', label: 'Camareros' },
-] as const;
+import { useAuth } from '@/context/AuthContext';
 
 export function Layout() {
+  const { source, label } = useDataSource();
   const { currentWaiter } = useWaiter();
-  const { session, leaveSession } = useSession();
-  const navigate = useNavigate();
+  const { user, company, role } = useAuth();
 
-  const handleLeave = () => {
-    leaveSession();
-    navigate('/session');
-  };
+  const isFirebase = source === 'firebase';
+
+  const navItems = isFirebase
+    ? [
+        { to: '/tables', label: 'Mesas' },
+        { to: '/config', label: 'Config' },
+        { to: '/waiter', label: 'Camareros' },
+        { to: '/admin', label: 'Admin' },
+      ]
+    : [
+        { to: '/tables', label: 'Mesas' },
+        { to: '/config', label: 'Config' },
+        { to: '/waiter', label: 'Camareros' },
+      ];
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-slate-800 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <span className="text-lg font-bold">CamareroVirtual</span>
-          {session && (
-            <span className="text-xs bg-slate-700 px-2 py-0.5 rounded font-mono">
-              {session.codigo}
-            </span>
-          )}
+          <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+            {label}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           {currentWaiter && (
             <span className="text-sm text-slate-300">{currentWaiter.nombre}</span>
           )}
-          <button onClick={handleLeave} className="text-xs text-red-400 hover:text-red-300">
-            Salir
-          </button>
+          {isFirebase && user && (
+            <span className="text-xs text-slate-400 hidden sm:inline">
+              {company?.name} / {role}
+            </span>
+          )}
         </div>
       </header>
 

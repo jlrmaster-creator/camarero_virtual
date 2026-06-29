@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getCompanyUserDoc(companyId) {
+      return get(
+        /databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid)
+      );
+    }
+
+    function isMember(companyId) {
+      return isAuthenticated()
+        && exists(
+          /databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid)
+        );
+    }
+
+    function isAdmin(companyId) {
+      return isMember(companyId)
+        && getCompanyUserDoc(companyId).data.role == 'admin';
+    }
+
+    function isWaiter(companyId) {
+      return isMember(companyId)
+        && getCompanyUserDoc(companyId).data.role == 'waiter';
+    }
+
+    // ── Companies ─────────────────────────────────────────────────────────
+
+    match /companies/{companyId} {
+      // Any member can read company info
+      allow read: if isMember(companyId);
+
+      // Any authenticated user can create a company (registration flow)
+      allow create: if isAuthenticated()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2;
+
+      // Only admins can update company data
+      allow update: if isAdmin(companyId);
+
+      // Never allow deletion from client
+      allow delete: if false;
+
+      // ── Users (admins + waiters) ──────────────────────────────────────
+      match /users/{userId} {
+        allow read: if isMember(companyId);
+        allow create: if isAuthenticated()
+          && request.resource.data.role in ['admin', 'waiter']
+          && request.resource.data.email is string;
+        allow update: if isAdmin(companyId)
+          || request.auth.uid == userId;
+        allow delete: if isAdmin(companyId)
+          && request.auth.uid != userId; // Can't delete yourself
+      }
+
+      // ── Waiters ───────────────────────────────────────────────────────
+      match /waiters/{waiterId} {
+        allow read: if isMember(companyId);
+        allow write: if isAdmin(companyId);
+      }
+
+      // ── Tables ────────────────────────────────────────────────────────
+      match /tables/{tableId} {
+        allow read: if isMember(companyId);
+        allow write: if isMember(companyId);
+      }
+
+      // ── Products ──────────────────────────────────────────────────────
+      match /products/{productId} {
+        allow read: if isMember(companyId);
+        allow write: if isMember(companyId);
+      }
+
+      // ── Occupations ───────────────────────────────────────────────────
+      match /occupations/{occupationId} {
+        allow read: if isMember(companyId);
+        allow write: if isMember(companyId);
+      }
+
+      // ── Reports (cierre de caja) ──────────────────────────────────────
+      match /reports/{reportId} {
+        allow read: if isMember(companyId);
+        // Only admins can create/update reports (close caja)
+        allow write: if isAdmin(companyId);
+        allow delete: if false; // Reports are immutable once created
+      }
+    }
+
+    // ── Deny everything else ──────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,17 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { tablesService } from '@/services/tables';
-import { occupationsService } from '@/services/occupations';
+import { store } from '@/services/store';
 import { ProductAutocomplete } from '@/components/ProductAutocomplete';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWaiter } from '@/context/WaiterContext';
-import type { TableWithOccupation } from '@/services/tables';
 
 export function TableDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentWaiter } = useWaiter();
-  const [table, setTable] = useState<TableWithOccupation | null>(null);
+  const [table, setTable] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [cliente, setCliente] = useState('');
   const [comensales, setComensales] = useState(1);
@@ -21,13 +19,14 @@ export function TableDetailPage() {
   const fetchTable = useCallback(async () => {
     if (!id) return;
     try {
-      const data = await tablesService.getById(Number(id));
+      const data = await store.getTable(Number(id));
       setTable(data);
-      if (data.occupation) {
-        setCliente(data.occupation.cliente);
-        setComensales(data.occupation.comensales);
-        setNota(data.occupation.nota);
-        setTotal(data.occupation.total);
+      const occ = data.occupation as Record<string, unknown> | null;
+      if (occ) {
+        setCliente(occ.cliente as string);
+        setComensales(occ.comensales as number);
+        setNota(occ.nota as string);
+        setTotal(occ.total as number);
       } else {
         setCliente('');
         setComensales(1);
@@ -47,24 +46,26 @@ export function TableDetailPage() {
 
   const saveOccupation = useCallback(async (data: { cliente: string; comensales: number; nota: string; total: number }) => {
     if (!table || !id) return;
-    if (table.occupation) {
-      await occupationsService.update(table.occupation.id, data);
+    const occ = table.occupation as Record<string, unknown> | null;
+    if (occ) {
+      await store.updateOccupation(occ.id as number, data);
     } else if (data.cliente || data.nota) {
-      const occ = await occupationsService.create({
+      const newOcc = await store.createOccupation({
         table_id: Number(id),
         waiter_id: currentWaiter?.id ?? null,
         ...data,
       });
-      setTable(prev => prev ? { ...prev, status: 'occupied', occupation: occ } : prev);
+      setTable(prev => prev ? { ...prev, status: 'occupied', occupation: newOcc } : prev);
     }
   }, [table, id, currentWaiter]);
 
   useAutoSave({ cliente, comensales, nota, total }, saveOccupation);
 
   const handleFinish = async () => {
-    if (!table?.occupation) return;
+    const occ = table?.occupation as Record<string, unknown> | null;
+    if (!occ) return;
     if (!window.confirm('¿Finalizar servicio de esta mesa?')) return;
-    await occupationsService.finish(table.occupation.id);
+    await store.finishOccupation(occ.id as number, Number(id));
     navigate('/tables');
   };
 
@@ -84,6 +85,10 @@ export function TableDetailPage() {
     paid: 'Cobrada',
   };
 
+  const nombre = table.nombre as string;
+  const numero = table.numero as number;
+  const status = table.status as string;
+
   return (
     <div className="space-y-4">
       <button onClick={() => navigate('/tables')} className="text-blue-600 text-sm">
@@ -91,8 +96,8 @@ export function TableDetailPage() {
       </button>
 
       <div className="card">
-        <h2 className="text-2xl font-bold">{table.nombre || `Mesa ${table.numero}`}</h2>
-        <p className="text-sm text-slate-500">Estado: {statusLabel[table.status] ?? table.status}</p>
+        <h2 className="text-2xl font-bold">{nombre || `Mesa ${numero}`}</h2>
+        <p className="text-sm text-slate-500">Estado: {statusLabel[status] ?? status}</p>
       </div>
 
       <div className="card space-y-3">
@@ -124,12 +129,12 @@ export function TableDetailPage() {
       <div className="card space-y-3">
         <h3 className="font-semibold">Total</h3>
         <div className="text-2xl font-bold">{total.toFixed(2)}€</div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {[0, 5, 10, 15, 20, 30, 50].map(amount => (
             <button
               key={amount}
               onClick={() => setTotal(prev => prev + amount)}
-              className="btn-primary text-sm flex-1"
+              className="btn-primary text-sm flex-1 min-w-[60px]"
             >
               +{amount}€
             </button>
@@ -137,7 +142,7 @@ export function TableDetailPage() {
         </div>
       </div>
 
-      {table.status !== 'free' && table.status !== 'paid' && (
+      {status !== 'free' && status !== 'paid' && (
         <button onClick={handleFinish} className="btn-danger w-full">
           Finalizar Servicio
         </button>

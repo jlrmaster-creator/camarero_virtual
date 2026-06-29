@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { tablesService, type TableWithOccupation } from '@/services/tables';
+import { store } from '@/services/store';
 import type { Zone } from '@/types/models';
 
 export function useTables(zone: Zone = 'interior') {
-  const [tables, setTables] = useState<TableWithOccupation[]>([]);
+  const [tables, setTables] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTables = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await tablesService.getAll(zone);
+      const data = await store.getTables(zone);
       setTables(data);
       setError(null);
     } catch (err) {
