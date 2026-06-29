@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -57,3 +58,21 @@ jobs:
           git add docs/
           git diff --staged --quiet || git commit -m "chore: deploy to docs/ [skip ci]"
           git push origin main
+
+      - name: Configure GitHub Pages
+        if: steps.skip.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Set Pages source to main branch /docs folder
+          gh api repos/${{ github.repository }}/pages -X PUT \
+            --input - <<'JSON'
+          {
+            "build_type": "legacy",
+            "source": {
+              "branch": "main",
+              "path": "/docs"
+            }
+          }
+          JSON
+          echo "Pages configured to serve from main branch, /docs folder"
