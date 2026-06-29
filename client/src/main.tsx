@@ -5,6 +5,9 @@ import { App } from './App';
 import { initFirebase } from '@/firebase/init';
 import './index.css';
 
+// Strip trailing slash so BrowserRouter gets e.g. '/camarero_virtual' or ''
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '');
+
 // ── Global error reporting (remove after debugging mobile blank screen) ──
 
 window.addEventListener('error', (event) => {
@@ -36,7 +39,7 @@ if (!root) throw new Error('Root element not found');
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <App />
     </BrowserRouter>
   </React.StrictMode>,
