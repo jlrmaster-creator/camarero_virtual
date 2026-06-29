@@ -1,9 +1,9 @@
 const CACHE_NAME = 'camarero-v1';
 
 const STATIC_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  '.',
+  './index.html',
+  './manifest.json',
 ];
 
 self.addEventListener('install', event => {
@@ -24,14 +24,17 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const { request } = event;
+  const url = new URL(request.url);
 
-  if (request.url.includes('/api/')) {
+  // API requests: network-first, fallback to cache
+  if (url.pathname.includes('/api/')) {
     event.respondWith(
       fetch(request).catch(() => caches.match(request)),
     );
     return;
   }
 
+  // Static assets: cache-first
   event.respondWith(
     caches.match(request).then(cached => cached ?? fetch(request)),
   );
