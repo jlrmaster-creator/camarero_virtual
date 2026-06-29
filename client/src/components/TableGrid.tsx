@@ -19,9 +19,17 @@ export function TableGrid({ tables, loading, error }: TableGridProps) {
   }
 
   if (error) {
+    const isOffline = error.includes('Servidor no disponible') || error.includes('conectar con el servidor');
     return (
-      <div className="text-center py-8 text-red-500">
-        <p>Error: {error}</p>
+      <div className={`text-center py-8 ${isOffline ? 'text-amber-500' : 'text-red-500'}`}>
+        <p className="text-lg font-semibold mb-2">
+          {isOffline ? '🔌 Servidor no disponible' : 'Error'}
+        </p>
+        <p className="text-sm opacity-80">
+          {isOffline
+            ? 'La aplicación está en modo vista. Conecta el servidor backend para usar todas las funciones.'
+            : error}
+        </p>
       </div>
     );
   }

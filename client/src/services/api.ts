@@ -21,7 +21,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as Record<string, unknown>;
     const err = body?.error as Record<string, string> | undefined;
-    throw new ApiError(res.status, err?.code ?? 'UNKNOWN', err?.message ?? `HTTP ${res.status}`);
+    const message = err?.message ??
+      (res.status === 404
+        ? 'Servidor no disponible (modo vista)'
+        : `Error del servidor (${res.status})`);
+    throw new ApiError(res.status, err?.code ?? 'UNKNOWN', message);
   }
 
   const body = await res.json() as { data: T };
