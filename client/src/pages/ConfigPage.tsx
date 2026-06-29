@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { productsService } from '@/services/products';
+import { store, getStoreSource } from '@/services/store';
 import type { Product } from '@/types/models';
 
 export function ConfigPage() {
@@ -8,7 +8,7 @@ export function ConfigPage() {
   const [newPrice, setNewPrice] = useState('');
 
   const fetchProducts = async () => {
-    const data = await productsService.getAll();
+    const data = await store.getProducts();
     setProducts(data);
   };
 
@@ -18,14 +18,14 @@ export function ConfigPage() {
 
   const addProduct = async () => {
     if (!newName || !newPrice) return;
-    await productsService.create({ nombre: newName, precio: Number(newPrice) });
+    await store.createProduct({ nombre: newName, precio: Number(newPrice) });
     setNewName('');
     setNewPrice('');
     await fetchProducts();
   };
 
   const deleteProduct = async (id: number) => {
-    await productsService.delete(id);
+    await store.deleteProduct(id);
     await fetchProducts();
   };
 

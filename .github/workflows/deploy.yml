@@ -38,12 +38,18 @@ jobs:
         if: steps.skip.outputs.skip != 'true'
         run: npm ci --ignore-scripts
 
-      - name: Set build version and inject into SW
+      - name: Bump version and inject into SW
         if: steps.skip.outputs.skip != 'true'
         run: |
-          BASE=$(node -p "require('./client/package.json').version")
-          BUILD=$(git rev-list --count HEAD)
-          VERSION="${BASE}+build.${BUILD}"
+          # Bump patch version in client/package.json
+          node -e "
+            const p = require('./client/package.json');
+            const v = p.version.split('.');
+            v[2] = parseInt(v[2]) + 1;
+            p.version = v.join('.');
+            require('fs').writeFileSync('./client/package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+          VERSION=$(node -p "require('./client/package.json').version")
           echo "Building version: $VERSION"
           sed -i "s/__VERSION__/$VERSION/g" public/sw.js
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -65,7 +71,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add docs/
+          git add docs/ client/package.json
           git diff --staged --quiet || git commit -m "chore: deploy v$VERSION to docs/ [skip ci]"
           git push origin main
 

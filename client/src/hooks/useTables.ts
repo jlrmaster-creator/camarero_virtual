@@ -27,14 +27,13 @@ export function useTables(zone: Zone = 'interior') {
     }
   }, [zone]);
 
-  // Real-time listener for Firebase mode
   useEffect(() => {
-    if (!isFirebase || !company) {
-      // Non-Firebase mode: use polling fetch
-      fetchTables();
-      return;
-    }
+    // Always fetch first (seeds defaults if empty)
+    fetchTables();
 
+    if (!isFirebase || !company) return;
+
+    // Firebase mode: also subscribe to real-time updates
     const db = getDb();
     const ref = collection(db, 'companies', company.id, 'tables');
     const q = query(ref, where('zone', '==', zone), orderBy('numero'));
@@ -58,7 +57,7 @@ export function useTables(zone: Zone = 'interior') {
         unsubRef.current = null;
       }
     };
-  }, [isFirebase, company?.id, zone]);
+  }, [isFirebase, company?.id, zone, fetchTables]);
 
   // Polling fallback for non-Firebase mode — refresh every 5s
   useEffect(() => {
