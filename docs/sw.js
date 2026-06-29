@@ -1,4 +1,4 @@
-const CACHE_NAME = 'camarero-2.1.11';
+const CACHE_NAME = 'camarero-__VERSION__';
 
 const STATIC_URLS = [
   '.',
@@ -58,7 +58,10 @@ self.addEventListener('fetch', event => {
         if (found) return found;
         return fetch(request).then(response => {
           if (response.ok && url.origin === self.location.origin) {
-            caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+            const cloned = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              try { cache.put(request, cloned); } catch { /* ignore */ }
+            });
           }
           return response;
         });
