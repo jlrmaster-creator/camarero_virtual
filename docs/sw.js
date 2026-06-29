@@ -1,4 +1,4 @@
-const CACHE_NAME = 'camarero-2.1.15';
+const CACHE_NAME = 'camarero-2.1.16';
 
 const STATIC_URLS = [
   '.',
@@ -47,6 +47,20 @@ self.addEventListener('fetch', event => {
   if (url.pathname.includes('/api/')) {
     event.respondWith(
       fetch(request).catch(() => caches.match(request)),
+    );
+    return;
+  }
+
+  // Network-first for navigations (HTML) — ensures fresh index.html after SW update,
+  // preventing 404s on old JS chunks that were deleted from cache.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).then(response => {
+        caches.open(CACHE_NAME).then(cache => cache.put(url.href, response.clone()));
+        return response;
+      }).catch(() =>
+        caches.match(url.href).then(cached => cached ?? findInCaches(request)),
+      ),
     );
     return;
   }
