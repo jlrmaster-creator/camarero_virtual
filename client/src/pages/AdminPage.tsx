@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { createFirestoreStore, type FirestoreStore } from '@/services/firebaseStore';
 import * as authService from '@/firebase/auth';
+import { firebaseConfig } from '@/firebase/config';
 import type { Waiter, CompanyUser } from '@/types/models';
 
 interface EditingWaiter {
@@ -53,11 +54,20 @@ export function AdminPage() {
     setBusy(true);
     setMsg('');
     try {
-      const { createUserWithEmailAndPassword } = await import('firebase/auth');
-      const { getAuthInstance } = await import('@/firebase/init');
-      const auth = getAuthInstance();
-      const cred = await createUserWithEmailAndPassword(auth, newEmail.trim(), newPass);
-      const uid = cred.user.uid;
+      // Use Firebase Auth REST API to create user without affecting current session
+      const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: newEmail.trim(), password: newPass, returnSecureToken: true }),
+        },
+      );
+      const body = await res.json();
+      if (res.status !== 200) {
+        throw new Error(body.error?.message === 'EMAIL_EXISTS' ? 'email-already-in-use' : body.error?.message ?? 'Error al crear usuario');
+      }
+      const uid: string = body.localId;
 
       await Promise.all([
         fsStore.waiters.create(newNombre.trim()),
