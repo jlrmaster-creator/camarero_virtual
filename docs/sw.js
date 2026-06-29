@@ -1,4 +1,4 @@
-const CACHE_NAME = 'camarero-2.1.2';
+const CACHE_NAME = 'camarero-2.1.3';
 
 const STATIC_URLS = [
   '.',
