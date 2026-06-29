@@ -33,12 +33,15 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: client/dist
-          publish_branch: gh-pages
-          force_orphan: true
-          user_name: github-actions
-          user_email: github-actions@github.com
+      - name: Copy build to docs/
+        run: |
+          rm -rf docs
+          cp -r client/dist docs
+
+      - name: Commit and push to main
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/
+          git diff --staged --quiet || git commit -m "chore: deploy to docs/ [skip ci]"
+          git push origin main
