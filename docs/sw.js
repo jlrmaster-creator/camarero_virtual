@@ -1,8 +1,6 @@
-const CACHE_NAME = 'camarero-2.1.16';
+const CACHE_NAME = 'camarero-2.1.17';
 
 const STATIC_URLS = [
-  '.',
-  './index.html',
   './manifest.json',
 ];
 
@@ -51,14 +49,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Network-first for navigations (HTML) — ensures fresh index.html after SW update,
-  // preventing 404s on old JS chunks that were deleted from cache.
+  // Network-first for navigations (HTML) — always fetch fresh index.html.
+  // Never cache HTML to avoid serving stale pages that reference deleted JS chunks.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).then(response => {
-        caches.open(CACHE_NAME).then(cache => cache.put(url.href, response.clone()));
-        return response;
-      }).catch(() =>
+      fetch(request).catch(() =>
         caches.match(url.href).then(cached => cached ?? findInCaches(request)),
       ),
     );
@@ -72,7 +67,8 @@ self.addEventListener('fetch', event => {
         if (found) return found;
         return fetch(request).then(response => {
           if (response.ok && url.origin === self.location.origin) {
-            caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           }
           return response;
         });
