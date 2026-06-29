@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { DataSourceProvider, useDataSource } from '@/context/DataSourceContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { initFirebase } from '@/firebase/init';
 import { WaiterProvider } from '@/context/WaiterContext';
 import { Layout } from '@/components/Layout';
 import { TablesPage } from '@/pages/TablesPage';
@@ -24,21 +22,9 @@ function LoadingScreen({ label }: { label: string }) {
 function AppRoutes() {
   const { checked, label, source } = useDataSource();
   const { user, company, loading: authLoading } = useAuth();
-  const [firebaseReady, setFirebaseReady] = useState(false);
-
-  useEffect(() => {
-    if (checked) {
-      const ok = initFirebase();
-      setFirebaseReady(true);
-    }
-  }, [checked]);
 
   if (!checked) {
     return <LoadingScreen label="Detectando modo de conexión..." />;
-  }
-
-  if (!firebaseReady) {
-    return <LoadingScreen label="Inicializando..." />;
   }
 
   // Firebase mode requires authentication
