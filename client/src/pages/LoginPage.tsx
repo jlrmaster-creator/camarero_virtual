@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { version as pkgVersion } from '../../package.json';
 
-const VERSION = 'v2.0.0';
+const VERSION = `v${pkgVersion}`;
 
 type Mode = 'login' | 'register';
 
