@@ -42,7 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(firebaseUser);
         if (firebaseUser) {
           const c = await authService.getCompanyByUser(firebaseUser.uid);
+          // Set company and store together BEFORE any await to prevent
+          // race: useTables can fire on company change and needs _firebaseStore ready.
           setCompany(c);
+          setFirebaseCompanyId(c?.id ?? null);
           if (c) {
             const status = await authService.checkUserBlocked(c.id, firebaseUser.uid);
             if (status.deleted || status.blocked) {
@@ -56,10 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const r = await authService.getUserRole(c.id, firebaseUser.uid);
             setRole(r);
             setRoleReady(true);
-            setFirebaseCompanyId(c.id);
           } else {
             setRoleReady(true);
-            setFirebaseCompanyId(null);
           }
         } else {
           setCompany(null);
