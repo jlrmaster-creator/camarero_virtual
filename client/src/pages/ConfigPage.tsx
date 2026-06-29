@@ -31,7 +31,7 @@ export function ConfigPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">Configuración</h1>
+      <h1 className="text-xl font-bold">Catálogo</h1>
 
       <div className="card space-y-3">
         <h2 className="font-semibold">Catálogo de Productos</h2>

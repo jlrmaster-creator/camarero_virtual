@@ -10,27 +10,25 @@ export function Layout() {
 
   const isFirebase = source === 'firebase';
 
-  const navItems = isFirebase
-    ? [
-        { to: '/tables', label: 'Mesas' },
-        { to: '/config', label: 'Config' },
-        { to: '/waiter', label: 'Camareros' },
-        { to: '/admin', label: 'Admin' },
-      ]
-    : [
-        { to: '/tables', label: 'Mesas' },
-        { to: '/config', label: 'Config' },
-        { to: '/waiter', label: 'Camareros' },
-      ];
+  const isAdmin = role === 'admin';
+  const navItems = [
+    { to: '/tables', label: 'Mesas' },
+    { to: '/config', label: 'Catálogo' },
+  ];
+
+  if (isAdmin || (!isFirebase)) {
+    navItems.push({ to: '/waiter', label: 'Camareros' });
+  }
+  
+  if (isFirebase && isAdmin) {
+    navItems.push({ to: '/admin', label: 'Admin' });
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-slate-800 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-lg font-bold">CamareroVirtual</span>
-          {isFirebase && user && (
-            <span className="text-sm text-blue-300">{user.email}</span>
-          )}
           <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
             {label}
           </span>

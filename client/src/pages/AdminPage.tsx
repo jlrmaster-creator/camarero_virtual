@@ -27,10 +27,18 @@ export function AdminPage() {
 
   const loadData = useCallback(async () => {
     if (!company || !fsStore) return;
-    const [w, u] = await Promise.all([
+    let [w, u] = await Promise.all([
       fsStore.waiters.getAll(),
       authService.getCompanyUsers(company.id),
     ]);
+
+    // Cleanup bugged "NaN" document if it exists
+    const nanDoc = w.find(waiter => String(waiter.id) === 'NaN');
+    if (nanDoc) {
+      await fsStore.waiters.remove('NaN' as unknown as number).catch(() => {});
+      w = w.filter(waiter => String(waiter.id) !== 'NaN');
+    }
+
     setWaiters(w);
     setCompanyUsers(u);
   }, [company, fsStore]);
@@ -122,7 +130,7 @@ export function AdminPage() {
         await authService.updateCompanyUser(company.id, u.id, { eliminado: true });
       }
       // Remove waiter document from Firestore
-      await fsStore.waiters.remove(Number(waiter.id));
+      await fsStore.waiters.remove(waiter.id as unknown as number);
       await loadData();
       setMsg('Camarero eliminado');
     } catch (err: unknown) {
@@ -153,7 +161,7 @@ export function AdminPage() {
       }
 
       // Update waiter document in Firestore
-      await fsStore.waiters.update(Number(editing.id), {
+      await fsStore.waiters.update(editing.id as unknown as number, {
         nombre: editNombre.trim(),
         activo: editing.activo,
       });
@@ -181,7 +189,7 @@ export function AdminPage() {
     try {
       const activeWaitersList = waiters.filter(w => w.activo);
       await Promise.all(
-        activeWaitersList.map(w => fsStore.waiters.update(Number(w.id), { activo: false }))
+        activeWaitersList.map(w => fsStore.waiters.update(w.id, { activo: false }))
       );
       await loadData();
       setMsg(`Se han cerrado ${activeWaitersList.length} turnos.`);
@@ -200,7 +208,7 @@ export function AdminPage() {
     <div className="max-w-3xl mx-auto p-4 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Configuración</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Configuración</h1>
           {company && <p className="text-slate-500 dark:text-slate-400 text-sm">{company.name}</p>}
         </div>
         <div className="flex items-center gap-3">
@@ -292,23 +300,21 @@ export function AdminPage() {
                   <div key={w.id} className="bg-slate-700/50 rounded-lg px-4 py-3">
                     {editing?.id === String(w.id) ? (
                       <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={editNombre}
-                            onChange={e => setEditNombre(e.target.value)}
-                            className="flex-1 bg-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                            disabled={busy}
-                          />
-                          <input
-                            type="password"
-                            value={editPass}
-                            onChange={e => setEditPass(e.target.value)}
-                            className="w-32 bg-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Nueva contraseña"
-                            disabled={busy}
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          value={editNombre}
+                          onChange={e => setEditNombre(e.target.value)}
+                          className="w-full bg-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={busy}
+                        />
+                        <input
+                          type="password"
+                          value={editPass}
+                          onChange={e => setEditPass(e.target.value)}
+                          className="w-full bg-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Nueva contraseña"
+                          disabled={busy}
+                        />
                         <label className="flex items-center gap-2 text-sm text-slate-300">
                           <input
                             type="checkbox"

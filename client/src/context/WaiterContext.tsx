@@ -34,8 +34,19 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
         setActiveWaiters([]);
         return;
       }
-      const waiters = await store.getWaiters(true);
-      setActiveWaiters(waiters);
+      
+      const allWaiters = await store.getWaiters(false);
+      const active = allWaiters.filter(w => w.activo);
+      setActiveWaiters(active);
+
+      if (user) {
+        const me = allWaiters.find(w => w.auth_uid === user.uid);
+        if (me && me.activo) {
+          setCurrentWaiter(me);
+        } else if (me && !me.activo) {
+          setCurrentWaiter(null);
+        }
+      }
     } catch {
       // ignore
     }

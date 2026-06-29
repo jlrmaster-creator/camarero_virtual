@@ -6,11 +6,19 @@ import type { Waiter } from '@/types/models';
 
 export function WaiterPage() {
   const { currentWaiter, setCurrentWaiter, activeWaiters, refresh } = useWaiter();
-  const { user, company, role } = useAuth();
+  const { user, company, role, roleReady } = useAuth();
   const [newName, setNewName] = useState('');
   const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
   const [showAll, setShowAll] = useState(false);
   const isAdmin = role === 'admin';
+
+  if (roleReady && !isAdmin) {
+    return (
+      <div className="text-center py-8 text-slate-500">
+        No tienes permisos para gestionar camareros.
+      </div>
+    );
+  }
 
   const fetchAll = async () => {
     const data = await store.getWaiters();
@@ -31,14 +39,18 @@ export function WaiterPage() {
 
   const startShift = async (id: number) => {
     const waiter = await store.startWaiterShift(id);
-    setCurrentWaiter(waiter);
+    if (!user || waiter?.auth_uid === user.uid) {
+      setCurrentWaiter(waiter || null);
+    }
     await refresh();
     if (showAll) await fetchAll();
   };
 
   const endShift = async (id: number) => {
     await store.endWaiterShift(id);
-    setCurrentWaiter(null);
+    if (!user || currentWaiter?.id === id) {
+      setCurrentWaiter(null);
+    }
     await refresh();
     if (showAll) await fetchAll();
   };
