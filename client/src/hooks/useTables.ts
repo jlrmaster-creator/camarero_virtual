@@ -47,10 +47,12 @@ export function useTables(zone: Zone = 'interior') {
     return rawTables.map(t => {
       const tid = String(t.id);
       const occupation = occMap.get(tid) ?? null;
-      const blocked = occupation !== null && currentWaiter !== null && occupation.waiter_id !== null
-        && occupation.waiter_id !== currentWaiter.id;
+      const waiterId = occupation?.waiter_id;
+      const blocked = occupation !== null && currentWaiter !== null && waiterId !== null && waiterId !== undefined
+        && waiterId !== currentWaiter.id;
       return {
         ...t,
+        status: (t.status as string) ?? 'free',
         occupation,
         blocked_by_other: blocked,
       } as TableWithMeta;

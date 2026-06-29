@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { store, getStoreSource } from '@/services/store';
 import { useAuth } from '@/context/AuthContext';
 import type { Waiter } from '@/types/models';
@@ -15,7 +15,17 @@ const WaiterContext = createContext<WaiterContextType | null>(null);
 export function WaiterProvider({ children }: { children: ReactNode }) {
   const [currentWaiter, setCurrentWaiter] = useState<Waiter | null>(null);
   const [activeWaiters, setActiveWaiters] = useState<Waiter[]>([]);
-  const { user, company } = useAuth();
+  const { user } = useAuth();
+  const prevUidRef = useRef<string | null>(null);
+
+  // Reset currentWaiter when the Firebase user changes (logout / login)
+  const currentUid = user?.uid ?? null;
+  if (currentUid !== prevUidRef.current) {
+    if (prevUidRef.current !== null) {
+      setCurrentWaiter(null);
+    }
+    prevUidRef.current = currentUid;
+  }
 
   const refresh = async () => {
     try {
@@ -26,9 +36,6 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
       }
       const waiters = await store.getWaiters(true);
       setActiveWaiters(waiters);
-
-      // If admin is not yet in the waiters list as active, they can start
-      // as a waiter too (handled in WaiterPage UI)
     } catch {
       // ignore
     }
@@ -36,7 +43,7 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
-  }, [user?.uid, company?.id]);
+  }, [user?.uid]);
 
   return (
     <WaiterContext.Provider value={{ currentWaiter, setCurrentWaiter, activeWaiters, refresh }}>

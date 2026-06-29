@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
 import { store } from '@/services/store';
@@ -6,15 +6,20 @@ import type { Waiter } from '@/types/models';
 
 export function WaiterPage() {
   const { currentWaiter, setCurrentWaiter, activeWaiters, refresh } = useWaiter();
-  const { user, company } = useAuth();
+  const { user, company, role } = useAuth();
   const [newName, setNewName] = useState('');
   const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const isAdmin = role === 'admin';
 
   const fetchAll = async () => {
     const data = await store.getWaiters();
     setAllWaiters(data);
   };
+
+  useEffect(() => {
+    if (showAll) fetchAll();
+  }, [showAll, user?.uid]);
 
   const addWaiter = async () => {
     if (!newName.trim()) return;
@@ -28,57 +33,21 @@ export function WaiterPage() {
     const waiter = await store.startWaiterShift(id);
     setCurrentWaiter(waiter);
     await refresh();
+    if (showAll) await fetchAll();
   };
 
   const endShift = async (id: number) => {
     await store.endWaiterShift(id);
     setCurrentWaiter(null);
     await refresh();
+    if (showAll) await fetchAll();
   };
-
-  const canSeeAdminOption = user && company;
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold">Camareros</h1>
 
-      {!currentWaiter && (
-        <div className="card space-y-3">
-          <h2 className="font-semibold">Iniciar Jornada</h2>
-          <p className="text-sm text-slate-500">Selecciona tu nombre o añádelo si es la primera vez.</p>
-
-          <div className="flex gap-2">
-            <input
-              className="input flex-1"
-              placeholder="Nombre del camarero"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-            />
-            <button onClick={addWaiter} className="btn-primary">Añadir</button>
-          </div>
-
-          {activeWaiters.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Camareros activos:</p>
-              {activeWaiters.map(w => (
-                <div key={w.id} className="flex justify-between items-center p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                  <span>{w.nombre}</span>
-                  <button onClick={() => startShift(w.id)} className="btn-primary text-sm">
-                    Trabajar
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {canSeeAdminOption && (
-            <p className="text-xs text-slate-400 pt-2 border-t border-slate-700">
-              Si no encuentras tu nombre, créalo arriba o selecciónalo en &quot;Ver todos los camareros&quot;.
-            </p>
-          )}
-        </div>
-      )}
-
+      {/* Current shift status */}
       {currentWaiter && (
         <div className="card space-y-3">
           <h2 className="font-semibold">Mi Jornada</h2>
@@ -92,8 +61,53 @@ export function WaiterPage() {
         </div>
       )}
 
+      {/* Always show the waiter list for admin; for waiters, only when not in shift */}
+      {(!currentWaiter || isAdmin) && (
+        <div className="card space-y-3">
+          <h2 className="font-semibold">{isAdmin && currentWaiter ? 'Gestionar camareros' : 'Iniciar Jornada'}</h2>
+          <p className="text-sm text-slate-500">Selecciona un camarero para ponerlo a trabajar o créalo si es la primera vez.</p>
+
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="Nombre del camarero"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+            />
+            <button onClick={addWaiter} className="btn-primary">Añadir</button>
+          </div>
+
+          {/* Active waiters: can take shift (or switch for admin) */}
+          {activeWaiters.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                {isAdmin ? 'Camareros activos:' : 'Camareros activos:'}
+              </p>
+              {activeWaiters.map(w => {
+                const isMe = currentWaiter?.id === w.id;
+                return (
+                  <div key={w.id} className="flex justify-between items-center p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                    <span>{w.nombre}{isMe ? ' (tú)' : ''}</span>
+                    <button
+                      onClick={() => isMe ? endShift(w.id) : startShift(w.id)}
+                      className={`text-sm px-3 py-1 rounded font-medium ${
+                        isMe
+                          ? 'bg-red-600/20 text-red-300 hover:bg-red-600/40'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {isMe ? 'Cerrar' : 'Trabajar'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <button
-        onClick={() => { setShowAll(!showAll); if (!showAll) fetchAll(); }}
+        onClick={() => { setShowAll(!showAll); }}
         className="text-blue-600 text-sm"
       >
         {showAll ? 'Ocultar' : 'Ver todos los camareros'}
@@ -110,9 +124,14 @@ export function WaiterPage() {
                     {w.activo ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
-                {!currentWaiter && !w.activo && (
+                {(isAdmin || !currentWaiter) && !w.activo && (
                   <button onClick={() => startShift(w.id)} className="btn-primary text-xs shrink-0">
                     Trabajar
+                  </button>
+                )}
+                {w.activo && (isAdmin || currentWaiter?.id === w.id) && (
+                  <button onClick={() => endShift(w.id)} className="bg-red-600/20 text-red-300 hover:bg-red-600/40 text-xs px-2 py-1 rounded">
+                    Cerrar
                   </button>
                 )}
               </li>
