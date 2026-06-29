@@ -94,9 +94,15 @@ export function useTables(zone: Zone = 'interior') {
           const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
           const enriched = await enrichWithOccupations(docs);
           setTables(enriched);
-        } catch {
-          // fallback: show raw data
-          const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
+        }       catch (err) {
+          console.error('useTables enrich error', err);
+          const docs = snap.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            status: (d.data() as Record<string, unknown>)?.status ?? 'free',
+            occupation: null,
+            blocked_by_other: false,
+          } as Record<string, unknown>));
           setTables(docs as TableWithMeta[]);
         } finally {
           setLoading(false);

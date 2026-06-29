@@ -17,6 +17,7 @@ interface AuthContextType {
   company: Company | null;
   role: UserRole | null;
   loading: boolean;
+  roleReady: boolean;
   signIn: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string) => Promise<User>;
   logOut: () => Promise<void>;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roleReady, setRoleReady] = useState(false);
 
   useEffect(() => {
     const auth = getAuthInstance();
@@ -48,21 +50,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setCompany(null);
               setRole(null);
               setFirebaseCompanyId(null);
+              setRoleReady(true);
               return;
             }
             const r = await authService.getUserRole(c.id, firebaseUser.uid);
             setRole(r);
+            setRoleReady(true);
             setFirebaseCompanyId(c.id);
           } else {
+            setRoleReady(true);
             setFirebaseCompanyId(null);
           }
         } else {
           setCompany(null);
           setRole(null);
+          setRoleReady(true);
           setFirebaseCompanyId(null);
         }
       } catch (err) {
-        console.error('Auth state change error:', err);
+        console.error('AuthContext: error en onAuthStateChanged', err);
+        setRoleReady(true);
       } finally {
         setLoading(false);
       }
@@ -91,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const c = await authService.getCompanyById(companyId);
       setCompany(c);
       setRole('admin');
+      setRoleReady(true);
       setFirebaseCompanyId(companyId);
     },
     [],
@@ -110,20 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [company]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        company,
-        role,
-        loading,
-        signIn,
-        signUp,
-        logOut,
-        registerCompany,
-        addUserToCompany,
-        getCompanyUsers,
-      }}
-    >
+      <AuthContext.Provider
+        value={{
+          user,
+          company,
+          role,
+          loading,
+          roleReady,
+          signIn,
+          signUp,
+          logOut,
+          registerCompany,
+          addUserToCompany,
+          getCompanyUsers,
+        }}
+      >
       {children}
     </AuthContext.Provider>
   );

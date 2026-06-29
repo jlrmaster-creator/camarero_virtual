@@ -15,7 +15,7 @@ const WaiterContext = createContext<WaiterContextType | null>(null);
 export function WaiterProvider({ children }: { children: ReactNode }) {
   const [currentWaiter, setCurrentWaiter] = useState<Waiter | null>(null);
   const [activeWaiters, setActiveWaiters] = useState<Waiter[]>([]);
-  const { user } = useAuth();
+  const { user, company } = useAuth();
   const prevUidRef = useRef<string | null>(null);
 
   // Reset currentWaiter when the Firebase user changes (logout / login)
@@ -30,7 +30,7 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
   const refresh = async () => {
     try {
       const source = getStoreSource();
-      if (source !== 'firebase') {
+      if (source !== 'firebase' || !company) {
         setActiveWaiters([]);
         return;
       }
@@ -43,7 +43,7 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
-  }, [user?.uid]);
+  }, [user?.uid, company?.id]);
 
   return (
     <WaiterContext.Provider value={{ currentWaiter, setCurrentWaiter, activeWaiters, refresh }}>

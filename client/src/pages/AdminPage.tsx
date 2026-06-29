@@ -12,7 +12,7 @@ interface EditingWaiter {
 }
 
 export function AdminPage() {
-  const { user, company, role, logOut } = useAuth();
+  const { user, company, role, roleReady, logOut } = useAuth();
   const [fsStore, setFsStore] = useState<FirestoreStore | null>(null);
   const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
@@ -354,7 +354,13 @@ export function AdminPage() {
         </>
       )}
 
-      {!isAdmin && (
+      {!roleReady && (
+        <div className="bg-slate-800 rounded-xl p-6 text-center">
+          <p className="text-slate-400">Cargando permisos...</p>
+        </div>
+      )}
+
+      {roleReady && !isAdmin && (
         <div className="bg-slate-800 rounded-xl p-6 text-center">
           <p className="text-slate-400">No tienes permisos de administrador.</p>
         </div>
