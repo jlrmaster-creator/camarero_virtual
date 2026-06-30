@@ -53,7 +53,6 @@ const DEFAULT_TABLES = [
 ];
 
 const DEFAULT_PRODUCTS: Array<{ nombre: string; precio: number; categoria: ProductCategory }> = [
-  // ── Bebidas ──────────────────────────────────────────────────────────
   { nombre: 'Caña / Tubo', precio: 2.80, categoria: 'bebida' },
   { nombre: 'Cerveza Doble', precio: 3.80, categoria: 'bebida' },
   { nombre: 'Cerveza Jarra', precio: 4.50, categoria: 'bebida' },
@@ -89,7 +88,6 @@ const DEFAULT_PRODUCTS: Array<{ nombre: string; precio: number; categoria: Produ
   { nombre: 'Pacharán', precio: 3.00, categoria: 'bebida' },
   { nombre: 'Orujo', precio: 2.50, categoria: 'bebida' },
   { nombre: 'Anís', precio: 2.50, categoria: 'bebida' },
-  // ── Comidas ──────────────────────────────────────────────────────────
   { nombre: 'Tortilla de Patatas', precio: 8.00, categoria: 'comida' },
   { nombre: 'Sandwich Mixto', precio: 5.00, categoria: 'comida' },
   { nombre: 'Patatas Bravas', precio: 6.00, categoria: 'comida' },
