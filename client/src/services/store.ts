@@ -67,7 +67,7 @@ export const store = {
     const s = getStore();
     const occ = await s.occupations.getByTableId(tableId);
     const ultimo = occ
-      ? { cliente: occ.cliente, total: occ.total, comensales: occ.comensales }
+      ? { cliente: occ.cliente, total: occ.total, comensales: occ.comensales, grupos: occ.grupos }
       : undefined;
     await s.occupations.finish(id);
     await s.tables.update(tableId, {

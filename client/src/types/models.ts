@@ -9,7 +9,7 @@ export interface Table {
   nombre: string;
   status: TableStatus;
   waiter_id?: number | null;
-  ultimo_servicio?: { cliente: string; total: number; comensales: number };
+  ultimo_servicio?: { cliente: string; total: number; comensales: number; grupos?: GrupoPedido[] };
 }
 
 export interface OrderItem {
@@ -17,6 +17,13 @@ export interface OrderItem {
   nombre: string;
   precio: number;
   cantidad: number;
+}
+
+export interface GrupoPedido {
+  id: string;
+  nombre: string;
+  comensales: number;
+  items: OrderItem[];
 }
 
 export interface Occupation {
@@ -27,6 +34,7 @@ export interface Occupation {
   comensales: number;
   nota: string;
   items?: OrderItem[];
+  grupos?: GrupoPedido[];
   fecha_creacion: string;
   fecha_actualizacion: string;
   fecha_expiracion: string;

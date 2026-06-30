@@ -1,9 +1,17 @@
 import { useNavigate } from 'react-router-dom';
 import type { TableWithMeta } from '@/hooks/useTables';
+import type { GrupoPedido } from '@/types/models';
 
 interface TableCardProps {
   table: TableWithMeta;
   disabled?: boolean;
+}
+
+interface UltimoServicio {
+  cliente?: string;
+  total?: number;
+  comensales?: number;
+  grupos?: GrupoPedido[];
 }
 
 function statusColor(table: TableWithMeta): string {
@@ -22,12 +30,32 @@ function zoneBorder(table: TableWithMeta): string {
   return table.zone === 'interior' ? 'border-t-4 border-blue-400' : 'border-t-4 border-amber-400';
 }
 
+function grupoTotal(grupo: GrupoPedido): number {
+  return grupo.items.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
+}
+
 export function TableCard({ table, disabled }: TableCardProps) {
   const navigate = useNavigate();
 
   const occ = table.occupation;
-  const ultimo = table.ultimo_servicio as { cliente: string; total: number; comensales: number } | undefined;
+  const ultimo = table.ultimo_servicio as UltimoServicio | undefined;
   const showData = occ || (table.status === 'paid' && ultimo);
+
+  const occGrupos = occ?.grupos as GrupoPedido[] | undefined;
+  const ultimoGrupos = ultimo?.grupos as GrupoPedido[] | undefined;
+  const grupos = occGrupos || ultimoGrupos;
+
+  const displayName = grupos && grupos.length > 0
+    ? grupos.map(g => g.nombre).join(' + ')
+    : occ?.cliente || ultimo?.cliente || '';
+
+  const totalCom = grupos
+    ? grupos.reduce((s, g) => s + g.comensales, 0)
+    : (occ?.comensales ?? ultimo?.comensales ?? 0);
+
+  const displayTotal = grupos
+    ? grupos.reduce((s, g) => s + grupoTotal(g), 0)
+    : (occ?.total ?? ultimo?.total ?? 0);
 
   return (
     <button
@@ -43,11 +71,11 @@ export function TableCard({ table, disabled }: TableCardProps) {
 
       {showData && (
         <span className="text-xs mt-1 opacity-90 flex flex-col items-center">
-          {occ?.cliente || ultimo?.cliente ? (
-            <span className="truncate max-w-[90px]">{occ?.cliente || ultimo?.cliente}</span>
-          ) : null}
+          {displayName && (
+            <span className="truncate max-w-[90px]">{displayName}</span>
+          )}
           <span>
-            {(occ?.comensales ?? ultimo?.comensales ?? 0)} com. · {(occ?.total ?? ultimo?.total ?? 0).toFixed(2)}€
+            {totalCom} com. · {displayTotal.toFixed(2)}€
           </span>
         </span>
       )}

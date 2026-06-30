@@ -6,12 +6,21 @@ import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
 import { generateTicketHtml, printTicket } from '@/utils/ticket';
-import type { Zone, OrderItem, Product } from '@/types/models';
+import type { Zone, OrderItem, Product, GrupoPedido } from '@/types/models';
 
 let itemIdCounter = 0;
 function nextItemId(): string {
   itemIdCounter += 1;
   return `item_${itemIdCounter}`;
+}
+let grupoIdCounter = 0;
+function nextGrupoId(): string {
+  grupoIdCounter += 1;
+  return `g${grupoIdCounter}`;
+}
+
+function grupoTotal(grupo: GrupoPedido): number {
+  return grupo.items.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
 }
 
 export function TableDetailPage() {
@@ -25,9 +34,7 @@ export function TableDetailPage() {
 
   const [table, setTable] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cliente, setCliente] = useState('');
-  const [comensales, setComensales] = useState<number | ''>(1);
-  const [items, setItems] = useState<OrderItem[]>([]);
+  const [grupos, setGrupos] = useState<GrupoPedido[]>([]);
 const [saving, setSaving] = useState(false);
 const [errorMsg, setErrorMsg] = useState('');
 const [blockedByOther, setBlockedByOther] = useState(false);
@@ -46,13 +53,17 @@ const [ticketHtml, setTicketHtml] = useState('');
       setTable(data);
       const occ = data.occupation as Record<string, unknown> | null;
       if (occ) {
-        setCliente(occ.cliente as string);
-        setComensales(occ.comensales as number);
-        setItems((occ.items as OrderItem[]) ?? []);
+        const loadedGrupos = occ.grupos as GrupoPedido[] | undefined;
+        if (loadedGrupos && loadedGrupos.length > 0) {
+          setGrupos(loadedGrupos);
+        } else {
+          const cliente = occ.cliente as string;
+          const comensales = occ.comensales as number;
+          const items = (occ.items as OrderItem[]) ?? [];
+          setGrupos([{ id: nextGrupoId(), nombre: cliente?.trim() || 'Comensal', comensales, items }]);
+        }
       } else {
-        setCliente('');
-        setComensales(1);
-        setItems([]);
+        setGrupos([{ id: nextGrupoId(), nombre: 'Comensal', comensales: 1, items: [] }]);
       }
 
       const allWaiters = await store.getWaiters();
@@ -92,36 +103,73 @@ const [ticketHtml, setTicketHtml] = useState('');
   const waiterId = currentWaiter?.id ?? (table?.waiter_id as number | null) ?? null;
   const blocked = noShift || blockedByOther;
 
-  const total = items.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
+  const total = grupos.reduce((sum, g) => sum + grupoTotal(g), 0);
 
-  const addItem = (product: Product) => {
-    const existing = items.find(i => i.nombre === product.nombre && i.precio === product.precio);
-    if (existing) {
-      setItems(prev => prev.map(i => i.id === existing.id ? { ...i, cantidad: i.cantidad + 1 } : i));
-    } else {
-      setItems(prev => [...prev, { id: nextItemId(), nombre: product.nombre, precio: product.precio, cantidad: 1 }]);
-    }
-  };
-
-  const updateQty = (itemId: string, delta: number) => {
-    setItems(prev => prev.map(i => {
-      if (i.id !== itemId) return i;
-      const newQty = i.cantidad + delta;
-      return newQty <= 0 ? i : { ...i, cantidad: newQty };
+  const addItemToGroup = (groupId: string, product: Product) => {
+    setGrupos(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      const existing = g.items.find(i => i.nombre === product.nombre && i.precio === product.precio);
+      if (existing) {
+        return { ...g, items: g.items.map(i => i.id === existing.id ? { ...i, cantidad: i.cantidad + 1 } : i) };
+      }
+      return { ...g, items: [...g.items, { id: nextItemId(), nombre: product.nombre, precio: product.precio, cantidad: 1 }] };
     }));
   };
 
-  const removeItem = (itemId: string) => {
-    setItems(prev => prev.filter(i => i.id !== itemId));
+  const updateItemQty = (groupId: string, itemId: string, delta: number) => {
+    setGrupos(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        items: g.items.map(i => {
+          if (i.id !== itemId) return i;
+          const newQty = i.cantidad + delta;
+          return newQty <= 0 ? i : { ...i, cantidad: newQty };
+        }),
+      };
+    }));
   };
 
-  const saveOccupation = useCallback(async (data: { cliente: string; comensales: number; items: OrderItem[]; total: number }) => {
+  const removeItemFromGroup = (groupId: string, itemId: string) => {
+    setGrupos(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return { ...g, items: g.items.filter(i => i.id !== itemId) };
+    }));
+  };
+
+  const addGroup = () => {
+    setGrupos(prev => [...prev, { id: nextGrupoId(), nombre: `Familia ${prev.length + 1}`, comensales: 1, items: [] }]);
+  };
+
+  const removeGroup = (groupId: string) => {
+    setGrupos(prev => prev.filter(g => g.id !== groupId));
+  };
+
+  const updateGroupName = (groupId: string, nombre: string) => {
+    setGrupos(prev => prev.map(g => g.id === groupId ? { ...g, nombre } : g));
+  };
+
+  const updateGroupComensales = (groupId: string, comensales: number) => {
+    setGrupos(prev => prev.map(g => g.id === groupId ? { ...g, comensales } : g));
+  };
+
+  const saveOccupation = useCallback(async (data: { grupos: GrupoPedido[]; total: number }) => {
     if (blocked || !table || !id) return;
     const occ = table.occupation as Record<string, unknown> | null;
-    const payload = { cliente: data.cliente, comensales: data.comensales, waiter_id: waiterId, items: data.items, total: data.total };
+    const allItems = data.grupos.flatMap(g => g.items);
+    const primerCliente = data.grupos[0]?.nombre ?? '';
+    const totalComensales = data.grupos.reduce((s, g) => s + g.comensales, 0);
+    const payload = {
+      cliente: primerCliente,
+      comensales: totalComensales,
+      waiter_id: waiterId,
+      items: allItems,
+      grupos: data.grupos,
+      total: data.total,
+    };
     if (occ) {
       await store.updateOccupation(occ.id as number, payload);
-    } else if (data.cliente || data.items.length > 0) {
+    } else if (allItems.length > 0) {
       const newOcc = await store.createOccupation({
         table_id: Number(id),
         ...payload,
@@ -130,7 +178,7 @@ const [ticketHtml, setTicketHtml] = useState('');
     }
   }, [blocked, table, id, waiterId]);
 
-  useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales, items, total }, data =>
+  useAutoSave({ grupos, total }, data =>
     saveOccupation({ ...data })
   );
 
@@ -139,7 +187,7 @@ const [ticketHtml, setTicketHtml] = useState('');
     setSaving(true);
     setErrorMsg('');
     try {
-      await saveOccupation({ cliente, comensales: comensales === '' ? 1 : comensales, items, total });
+      await saveOccupation({ grupos, total });
       setErrorMsg('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al guardar. Comprueba tu conexión.';
@@ -150,14 +198,14 @@ const [ticketHtml, setTicketHtml] = useState('');
   };
 
   const handleAddNewProduct = async () => {
-    if (!newProductName || !newProductPrice || blocked) return;
+    if (!newProductName || !newProductPrice || blocked || grupos.length === 0) return;
     const price = Number(newProductPrice);
     if (isNaN(price) || price <= 0) return;
     try {
       const product = await store.createProduct({ nombre: newProductName.trim(), precio: price, categoria: 'comida' });
       setNewProductName('');
       setNewProductPrice('');
-      addItem(product);
+      addItemToGroup(grupos[0].id, product);
     } catch (e) {
       setErrorMsg('Error al crear el producto');
       console.error('[TableDetailPage] create product failed:', e);
@@ -192,14 +240,18 @@ const [ticketHtml, setTicketHtml] = useState('');
   const handleTicket = () => {
     const nombre = (table?.nombre as string) ?? '';
     const tableName = nombre.replace(/^Mesa\s*/, '') || String(table?.numero ?? '');
-    const itemsText = items.map(i => `${i.cantidad}x ${i.nombre} — ${(i.precio * i.cantidad).toFixed(2)}€`).join('\n');
+    const totalComensales = grupos.reduce((s, g) => s + g.comensales, 0);
     const html = generateTicketHtml({
       tableName,
       zone: returnZone === 'interior' ? 'Interior' : 'Terraza',
       waiterName: assignedWaiterName,
-      cliente,
-      comensales: comensales === '' ? 1 : comensales,
-      nota: itemsText,
+      cliente: grupos.map(g => g.nombre).join(', '),
+      comensales: totalComensales,
+      grupos: grupos.map(g => ({
+        nombre: g.nombre,
+        items: g.items.map(i => `${i.cantidad}x ${i.nombre} — ${(i.precio * i.cantidad).toFixed(2)}€`).join('\n'),
+        subtotal: grupoTotal(g),
+      })),
       total,
     });
     setTicketHtml(html);
@@ -273,73 +325,97 @@ const [ticketHtml, setTicketHtml] = useState('');
 
       {status !== 'paid' && (
         <>
-          <div className="card space-y-3">
-            <h3 className="font-semibold">Cliente</h3>
-            <input
-              className="input"
-              placeholder="Nombre del cliente"
-              value={cliente}
-              onChange={e => setCliente(e.target.value)}
-              disabled={blocked}
-            />
-            <div>
-              <label className="text-sm text-slate-500">Comensales</label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                className="input"
-                value={comensales}
-                onChange={e => {
-                  if (blocked) return;
-                  const val = e.target.value;
-                  setComensales(val === '' ? '' : Number(val));
-                }}
-                disabled={blocked}
-              />
-            </div>
-          </div>
-
-          <div className="card space-y-3">
-            <h3 className="font-semibold">Pedido</h3>
-            <ProductAutocomplete onAddProduct={addItem} disabled={blocked} />
-
-            <div className="divide-y divide-slate-200 dark:divide-slate-700">
-              {items.length === 0 && (
-                <p className="text-sm text-slate-500 py-2">No hay productos añadidos</p>
+          <div className="card space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Clientes / Grupos</h3>
+              {!blocked && (
+                <button onClick={addGroup} className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                  + Añadir grupo
+                </button>
               )}
-              {items.map(item => (
-                <div key={item.id} className="flex items-center gap-2 py-2 text-sm">
-                  <span className="flex-1 truncate">{item.nombre}</span>
-                  <span className="text-slate-400 w-12 text-right">{item.precio.toFixed(2)}€</span>
-                  <div className="flex items-center gap-1">
+            </div>
+
+            {grupos.map((grupo, _idx) => (
+              <div key={grupo.id} className="border border-slate-600 rounded-lg p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    className="input flex-1 font-medium"
+                    value={grupo.nombre}
+                    onChange={e => updateGroupName(grupo.id, e.target.value)}
+                    disabled={blocked}
+                  />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <label className="text-xs text-slate-400">Pers.</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      className="input w-14 text-center"
+                      value={grupo.comensales}
+                      onChange={e => {
+                        if (blocked) return;
+                        updateGroupComensales(grupo.id, Number(e.target.value) || 1);
+                      }}
+                      disabled={blocked}
+                    />
+                  </div>
+                  {grupos.length > 1 && !blocked && (
                     <button
-                      onClick={() => updateQty(item.id, -1)}
-                      className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center disabled:opacity-30"
-                      disabled={blocked || item.cantidad <= 1}
+                      onClick={() => removeGroup(grupo.id)}
+                      className="text-red-400 hover:text-red-300 text-lg leading-none px-1"
+                      title="Eliminar grupo"
                     >
-                      −
+                      ✕
                     </button>
-                    <span className="w-6 text-center font-medium">{item.cantidad}</span>
+                  )}
+                </div>
+
+                <ProductAutocomplete
+                  key={grupo.id}
+                  onAddProduct={product => addItemToGroup(grupo.id, product)}
+                  disabled={blocked}
+                />
+
+                {grupo.items.length === 0 && (
+                  <p className="text-sm text-slate-500 text-center py-1">Sin productos</p>
+                )}
+                {grupo.items.map(item => (
+                  <div key={item.id} className="flex items-center gap-2 py-1 text-sm">
+                    <span className="flex-1 truncate">{item.nombre}</span>
+                    <span className="text-slate-400 w-12 text-right">{item.precio.toFixed(2)}€</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => updateItemQty(grupo.id, item.id, -1)}
+                        className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center disabled:opacity-30"
+                        disabled={blocked || item.cantidad <= 1}
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center font-medium">{item.cantidad}</span>
+                      <button
+                        onClick={() => updateItemQty(grupo.id, item.id, 1)}
+                        className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center"
+                        disabled={blocked}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <span className="w-16 text-right font-medium">{(item.precio * item.cantidad).toFixed(2)}€</span>
                     <button
-                      onClick={() => updateQty(item.id, 1)}
-                      className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center"
+                      onClick={() => removeItemFromGroup(grupo.id, item.id)}
+                      className="text-red-400 hover:text-red-300 text-xs font-bold ml-1"
                       disabled={blocked}
                     >
-                      +
+                      ✕
                     </button>
                   </div>
-                  <span className="w-16 text-right font-medium">{(item.precio * item.cantidad).toFixed(2)}€</span>
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="text-red-400 hover:text-red-300 text-xs font-bold ml-1"
-                    disabled={blocked}
-                  >
-                    ✕
-                  </button>
+                ))}
+
+                <div className="text-right text-sm font-semibold text-slate-300">
+                  Subtotal: {grupoTotal(grupo).toFixed(2)}€
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
 
           {!blocked && (
@@ -386,12 +462,24 @@ const [ticketHtml, setTicketHtml] = useState('');
             <span className="text-green-500">✓</span> Servicio Finalizado
           </h3>
           {(() => {
-            const us = table?.ultimo_servicio as { cliente?: string; total?: number; comensales?: number } | undefined;
+            const us = table?.ultimo_servicio as { cliente?: string; total?: number; comensales?: number; grupos?: GrupoPedido[] } | undefined;
             return us ? (
-              <div className="text-sm space-y-1 text-slate-600 dark:text-slate-400">
-                {us.cliente && <p>Cliente: <strong>{us.cliente}</strong></p>}
-                <p>Comensales: <strong>{us.comensales}</strong></p>
-                <p className="text-lg font-bold text-white">Total: {us.total?.toFixed(2)}€</p>
+              <div className="text-sm space-y-2 text-slate-600 dark:text-slate-400">
+                {us.grupos && us.grupos.length > 1 ? (
+                  us.grupos.map(g => (
+                    <div key={g.id} className="border-b border-slate-600/30 pb-2 last:border-0">
+                      <p className="font-semibold text-slate-200">{g.nombre}</p>
+                      <p>Comensales: {g.comensales}</p>
+                      <p>Total: {grupoTotal(g).toFixed(2)}€</p>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    {us.cliente && <p>Cliente: <strong>{us.cliente}</strong></p>}
+                    <p>Comensales: <strong>{us.comensales}</strong></p>
+                  </>
+                )}
+                <p className="text-lg font-bold text-white mt-2">Total: {us.total?.toFixed(2)}€</p>
               </div>
             ) : (
               <p className="text-sm text-slate-500">Sin datos del servicio anterior.</p>

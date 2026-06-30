@@ -219,6 +219,14 @@ export function createFirestoreStore(companyId: string) {
           nota: data.nota ?? '',
           total: 0,
           active: true,
+          grupos: [
+            {
+              id: 'g1',
+              nombre: data.cliente?.trim() || 'Comensal',
+              comensales: data.comensales ?? 1,
+              items: [],
+            },
+          ],
           fecha_creacion: new Date().toISOString(),
           fecha_actualizacion: new Date().toISOString(),
         };
@@ -242,6 +250,7 @@ export function createFirestoreStore(companyId: string) {
           cliente: '',
           comensales: 1,
           items: [],
+          grupos: [],
           total: 0,
           nota: '',
           fecha_actualizacion: new Date().toISOString(),
