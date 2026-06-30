@@ -97,7 +97,7 @@ export function TableDetailPage() {
         total,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al guardar';
+      const msg = err instanceof Error ? err.message : 'Error al guardar. Comprueba tu conexión.';
       setErrorMsg(msg);
     } finally {
       setSaving(false);
@@ -174,7 +174,8 @@ export function TableDetailPage() {
               onChange={e => {
                 const wid = e.target.value ? Number(e.target.value) : null;
                 assignWaiter(wid).catch(err => {
-                  setErrorMsg(err instanceof Error ? err.message : 'Error al asignar camarero');
+                  const msg = err instanceof Error ? err.message : 'Error al asignar camarero. Comprueba tu conexión.';
+                  setErrorMsg(msg);
                   console.error(err);
                 });
               }}
