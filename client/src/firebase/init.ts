@@ -1,5 +1,5 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { initializeFirestore, type Firestore } from 'firebase/firestore';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
 import { firebaseConfig, isFirebaseConfigured } from './config';
 
@@ -11,9 +11,7 @@ export function initFirebase(): boolean {
   if (!isFirebaseConfigured()) return false;
   if (!app) {
     app = initializeApp(firebaseConfig);
-    db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-    });
+    db = getFirestore(app);
     auth = getAuth(app);
   }
   return true;

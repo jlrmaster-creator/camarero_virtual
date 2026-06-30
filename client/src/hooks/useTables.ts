@@ -23,14 +23,19 @@ async function fetchActiveOccupations(companyId: string): Promise<Map<string, Oc
   const db = getDb();
   const ref = collection(db, 'companies', companyId, 'occupations');
   const q = query(ref, where('active', '==', true));
-  const snap = await getDocs(q);
-  const map = new Map<string, Occupation>();
-  snap.docs.forEach(d => {
-    const data = d.data() as Record<string, unknown>;
-    const tableId = String(data.table_id);
-    map.set(tableId, { id: d.id, ...data } as unknown as Occupation);
-  });
-  return map;
+    try {
+      const snap = await getDocs(q);
+      const map = new Map<string, Occupation>();
+      snap.docs.forEach(d => {
+        const data = d.data() as Record<string, unknown>;
+        const tableId = String(data.table_id);
+        map.set(tableId, { id: d.id, ...data } as unknown as Occupation);
+      });
+      return map;
+    } catch (e) {
+      console.error('[useTables] fetchActiveOccupations failed:', e);
+      throw e;
+    }
 }
 
 export function useTables(zone: Zone = 'interior') {

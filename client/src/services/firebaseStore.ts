@@ -119,12 +119,16 @@ export function createFirestoreStore(companyId: string) {
         const ref = docRef(database, companyId, TABLES_COL, String(id));
         await setDoc(ref, data, { merge: true });
         // Esperar confirmación del servidor (timeout 8s)
-        await Promise.race([
-          waitForPendingWrites(database).catch(() => {}),
-          new Promise<void>((_, reject) =>
-            setTimeout(() => reject(new Error('Firestore write not confirmed within 8s')), 8000)
-          ),
-        ]);
+        try {
+          await Promise.race([
+            waitForPendingWrites(database),
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error('Firestore write not confirmed within 8s')), 8000)
+            ),
+          ]);
+        } catch (e) {
+          console.warn('[firebaseStore] write confirm issue (data may still persist):', e);
+        }
         return this.getById(id);
       },
     },

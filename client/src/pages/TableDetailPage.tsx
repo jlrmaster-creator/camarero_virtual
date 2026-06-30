@@ -27,7 +27,7 @@ export function TableDetailPage() {
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    store.getWaiters().then(setAllWaiters).catch(() => {});
+    store.getWaiters().then(setAllWaiters).catch((e) => console.error('[TableDetailPage] load waiters failed:', e));
   }, []);
 
   const fetchTable = useCallback(async () => {
@@ -48,7 +48,8 @@ export function TableDetailPage() {
         setTotal(0);
       }
       setWaiterId((data.waiter_id as number) ?? (occ?.waiter_id as number) ?? null);
-    } catch {
+    } catch (e) {
+      console.error('[TableDetailPage] fetch table failed:', e);
       navigate('/tables');
     } finally {
       setLoading(false);
@@ -108,8 +109,14 @@ export function TableDetailPage() {
     const occ = table?.occupation as Record<string, unknown> | null;
     if (!occ) return;
     if (!window.confirm('¿Finalizar servicio de esta mesa?')) return;
-    await store.finishOccupation(occ.id as number, Number(id));
-    navigate('/tables');
+    try {
+      await store.finishOccupation(occ.id as number, Number(id));
+      navigate('/tables');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Error al finalizar servicio';
+      setErrorMsg(msg);
+      console.error('[TableDetailPage] finish failed:', e);
+    }
   };
 
   if (loading) {
