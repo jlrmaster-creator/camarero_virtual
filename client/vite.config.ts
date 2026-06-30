@@ -5,7 +5,16 @@ import path from 'path';
 export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/camarero_virtual/' : '/',
   publicDir: path.resolve(__dirname, '../public'),
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'manifest-base',
+      transformIndexHtml(html) {
+        const base = process.env.NODE_ENV === 'production' ? '/camarero_virtual/' : '/';
+        return html.replace(/href="\.\/manifest\.json"/g, `href="${base}manifest.json"`);
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
