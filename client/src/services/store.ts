@@ -65,8 +65,15 @@ export const store = {
 
   async finishOccupation(id: number, tableId: number): Promise<void> {
     const s = getStore();
+    const occ = await s.occupations.getByTableId(tableId);
+    const ultimo = occ
+      ? { cliente: occ.cliente, total: occ.total, comensales: occ.comensales }
+      : undefined;
     await s.occupations.finish(id);
-    await s.tables.update(tableId, { status: 'free' });
+    await s.tables.update(tableId, {
+      status: 'paid',
+      ...(ultimo ? { ultimo_servicio: ultimo } : {}),
+    });
   },
 
   async getProducts(q?: string): Promise<Product[]> {

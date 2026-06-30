@@ -178,6 +178,17 @@ const [ticketHtml, setTicketHtml] = useState('');
     }
   };
 
+  const handleReopen = async () => {
+    if (!id) return;
+    try {
+      await store.createOccupation({ table_id: Number(id), waiter_id: waiterId });
+      goBack();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Error al reabrir servicio';
+      setErrorMsg(msg);
+    }
+  };
+
   const handleTicket = () => {
     const nombre = (table?.nombre as string) ?? '';
     const tableName = nombre.replace(/^Mesa\s*/, '') || String(table?.numero ?? '');
@@ -260,110 +271,137 @@ const [ticketHtml, setTicketHtml] = useState('');
         </p>
       </div>
 
-      <div className="card space-y-3">
-        <h3 className="font-semibold">Cliente</h3>
-        <input
-          className="input"
-          placeholder="Nombre del cliente"
-          value={cliente}
-          onChange={e => setCliente(e.target.value)}
-          disabled={blocked}
-        />
-        <div>
-          <label className="text-sm text-slate-500">Comensales</label>
-          <input
-            type="number"
-            min={1}
-            max={20}
-            className="input"
-            value={comensales}
-            onChange={e => {
-              if (blocked) return;
-              const val = e.target.value;
-              setComensales(val === '' ? '' : Number(val));
-            }}
-            disabled={blocked}
-          />
-        </div>
-      </div>
+      {status !== 'paid' && (
+        <>
+          <div className="card space-y-3">
+            <h3 className="font-semibold">Cliente</h3>
+            <input
+              className="input"
+              placeholder="Nombre del cliente"
+              value={cliente}
+              onChange={e => setCliente(e.target.value)}
+              disabled={blocked}
+            />
+            <div>
+              <label className="text-sm text-slate-500">Comensales</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                className="input"
+                value={comensales}
+                onChange={e => {
+                  if (blocked) return;
+                  const val = e.target.value;
+                  setComensales(val === '' ? '' : Number(val));
+                }}
+                disabled={blocked}
+              />
+            </div>
+          </div>
 
-      <div className="card space-y-3">
-        <h3 className="font-semibold">Pedido</h3>
-        <ProductAutocomplete onAddProduct={addItem} disabled={blocked} />
+          <div className="card space-y-3">
+            <h3 className="font-semibold">Pedido</h3>
+            <ProductAutocomplete onAddProduct={addItem} disabled={blocked} />
 
-        <div className="divide-y divide-slate-200 dark:divide-slate-700">
-          {items.length === 0 && (
-            <p className="text-sm text-slate-500 py-2">No hay productos añadidos</p>
-          )}
-          {items.map(item => (
-            <div key={item.id} className="flex items-center gap-2 py-2 text-sm">
-              <span className="flex-1 truncate">{item.nombre}</span>
-              <span className="text-slate-400 w-12 text-right">{item.precio.toFixed(2)}€</span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => updateQty(item.id, -1)}
-                  className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center disabled:opacity-30"
-                  disabled={blocked || item.cantidad <= 1}
-                >
-                  −
-                </button>
-                <span className="w-6 text-center font-medium">{item.cantidad}</span>
-                <button
-                  onClick={() => updateQty(item.id, 1)}
-                  className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center"
-                  disabled={blocked}
-                >
-                  +
+            <div className="divide-y divide-slate-200 dark:divide-slate-700">
+              {items.length === 0 && (
+                <p className="text-sm text-slate-500 py-2">No hay productos añadidos</p>
+              )}
+              {items.map(item => (
+                <div key={item.id} className="flex items-center gap-2 py-2 text-sm">
+                  <span className="flex-1 truncate">{item.nombre}</span>
+                  <span className="text-slate-400 w-12 text-right">{item.precio.toFixed(2)}€</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => updateQty(item.id, -1)}
+                      className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center disabled:opacity-30"
+                      disabled={blocked || item.cantidad <= 1}
+                    >
+                      −
+                    </button>
+                    <span className="w-6 text-center font-medium">{item.cantidad}</span>
+                    <button
+                      onClick={() => updateQty(item.id, 1)}
+                      className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center"
+                      disabled={blocked}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <span className="w-16 text-right font-medium">{(item.precio * item.cantidad).toFixed(2)}€</span>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="text-red-400 hover:text-red-300 text-xs font-bold ml-1"
+                    disabled={blocked}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {!blocked && (
+            <div className="card space-y-3">
+              <h3 className="font-semibold">Añadir producto nuevo</h3>
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1 min-w-0"
+                  placeholder="Nombre del producto"
+                  value={newProductName}
+                  onChange={e => setNewProductName(e.target.value)}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="input w-20"
+                  placeholder="Precio"
+                  value={newProductPrice}
+                  onChange={e => setNewProductPrice(e.target.value)}
+                />
+                <button onClick={handleAddNewProduct} className="btn-primary shrink-0">
+                  Añadir
                 </button>
               </div>
-              <span className="w-16 text-right font-medium">{(item.precio * item.cantidad).toFixed(2)}€</span>
-              <button
-                onClick={() => removeItem(item.id)}
-                className="text-red-400 hover:text-red-300 text-xs font-bold ml-1"
-                disabled={blocked}
-              >
-                ✕
-              </button>
             </div>
-          ))}
-        </div>
-      </div>
+          )}
 
-      {!blocked && (
-        <div className="card space-y-3">
-          <h3 className="font-semibold">Añadir producto nuevo</h3>
-          <div className="flex gap-2">
-            <input
-              className="input flex-1 min-w-0"
-              placeholder="Nombre del producto"
-              value={newProductName}
-              onChange={e => setNewProductName(e.target.value)}
-            />
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              className="input w-20"
-              placeholder="Precio"
-              value={newProductPrice}
-              onChange={e => setNewProductPrice(e.target.value)}
-            />
-            <button onClick={handleAddNewProduct} className="btn-primary shrink-0">
-              Añadir
-            </button>
+          <div className="card space-y-3">
+            <h3 className="font-semibold">Total</h3>
+            <div className="text-2xl font-bold">{total.toFixed(2)}€</div>
+            {!blocked && (
+              <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
+                {saving ? 'Guardando...' : 'Guardar Pedido'}
+              </button>
+            )}
           </div>
-        </div>
+        </>
       )}
 
-      <div className="card space-y-3">
-        <h3 className="font-semibold">Total</h3>
-        <div className="text-2xl font-bold">{total.toFixed(2)}€</div>
-        {!blocked && (
-          <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
-            {saving ? 'Guardando...' : 'Guardar Pedido'}
+      {status === 'paid' && (
+        <div className="card space-y-3 bg-slate-100 dark:bg-slate-800/50">
+          <h3 className="font-semibold flex items-center gap-2">
+            <span className="text-green-500">✓</span> Servicio Finalizado
+          </h3>
+          {(() => {
+            const us = table?.ultimo_servicio as { cliente?: string; total?: number; comensales?: number } | undefined;
+            return us ? (
+              <div className="text-sm space-y-1 text-slate-600 dark:text-slate-400">
+                {us.cliente && <p>Cliente: <strong>{us.cliente}</strong></p>}
+                <p>Comensales: <strong>{us.comensales}</strong></p>
+                <p className="text-lg font-bold text-white">Total: {us.total?.toFixed(2)}€</p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Sin datos del servicio anterior.</p>
+            );
+          })()}
+          <button onClick={handleReopen} className="btn-primary w-full">
+            Reabrir Servicio
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {status !== 'free' && status !== 'paid' && (
         <div className="flex gap-2">

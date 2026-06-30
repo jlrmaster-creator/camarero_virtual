@@ -9,6 +9,7 @@ export interface Table {
   nombre: string;
   status: TableStatus;
   waiter_id?: number | null;
+  ultimo_servicio?: { cliente: string; total: number; comensales: number };
 }
 
 export interface OrderItem {
