@@ -4,7 +4,7 @@ import { store, getStoreSource } from '@/services/store';
 import { getDb } from '@/firebase/init';
 import { useAuth } from '@/context/AuthContext';
 import { useWaiter } from '@/context/WaiterContext';
-import type { Zone, Occupation, Waiter } from '@/types/models';
+import type { Zone, Occupation } from '@/types/models';
 
 interface TableWithMeta {
   id: string;
@@ -14,6 +14,7 @@ interface TableWithMeta {
   status: string;
   occupation: Occupation | null;
   blocked_by_other: boolean;
+  waiter_id: number | null;
   waiter_nombre: string | null;
   [key: string]: unknown;
 }
@@ -53,15 +54,18 @@ export function useTables(zone: Zone = 'interior') {
     return rawTables.map(t => {
       const tid = String(t.id);
       const occupation = occMap.get(tid) ?? null;
-      const waiterId = occupation?.waiter_id;
-      const blocked = occupation !== null && currentWaiter !== null && waiterId !== null && waiterId !== undefined
-        && waiterId !== currentWaiter.id;
+      const tableWaiterId = (t.waiter_id as number) ?? null;
+      const occWaiterId = occupation?.waiter_id;
+      const resolveWaiterId = occWaiterId ?? tableWaiterId;
+      const blocked = occupation !== null && currentWaiter !== null && occWaiterId !== null && occWaiterId !== undefined
+        && occWaiterId !== currentWaiter.id;
       return {
         ...t,
         status: (t.status as string) ?? 'free',
         occupation,
+        waiter_id: tableWaiterId,
         blocked_by_other: blocked,
-        waiter_nombre: waiterId ? (waiterMap.get(waiterId) ?? null) : null,
+        waiter_nombre: resolveWaiterId ? (waiterMap.get(resolveWaiterId) ?? null) : null,
       } as TableWithMeta;
     });
   }, [company, currentWaiter]);

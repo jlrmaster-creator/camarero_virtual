@@ -39,14 +39,13 @@ export function TableDetailPage() {
         setComensales(occ.comensales as number);
         setNota(occ.nota as string);
         setTotal(occ.total as number);
-        setWaiterId((occ.waiter_id as number) ?? null);
       } else {
         setCliente('');
         setComensales(1);
         setNota('');
         setTotal(0);
-        setWaiterId(null);
       }
+      setWaiterId((data.waiter_id as number) ?? (occ?.waiter_id as number) ?? null);
     } catch {
       navigate('/tables');
     } finally {
@@ -58,24 +57,29 @@ export function TableDetailPage() {
     fetchTable();
   }, [fetchTable]);
 
-  const saveOccupation = useCallback(async (data: { cliente: string; comensales: number; nota: string; total: number; waiter_id: number | null }) => {
+  const assignWaiter = async (wid: number | null) => {
+    if (!id || blocked) return;
+    await store.updateTable(Number(id), { waiter_id: wid ?? null });
+    setWaiterId(wid);
+    setTable(prev => prev ? { ...prev, waiter_id: wid } : prev);
+  };
+
+  const saveOccupation = useCallback(async (data: { cliente: string; comensales: number; nota: string; total: number }) => {
     if (blocked || !table || !id) return;
     const occ = table.occupation as Record<string, unknown> | null;
     if (occ) {
-      await store.updateOccupation(occ.id as number, data);
-    } else if (data.cliente || data.nota || data.waiter_id != null) {
-      const wId = data.waiter_id !== undefined ? data.waiter_id : (currentWaiter?.id ?? null);
+      await store.updateOccupation(occ.id as number, { ...data, waiter_id: waiterId });
+    } else if (data.cliente || data.nota) {
       const newOcc = await store.createOccupation({
         table_id: Number(id),
         ...data,
-        waiter_id: wId,
+        waiter_id: waiterId,
       });
       setTable(prev => prev ? { ...prev, status: 'occupied', occupation: newOcc } : prev);
-      if (wId !== waiterId) setWaiterId(wId);
     }
-  }, [blocked, table, id, currentWaiter, waiterId]);
+  }, [blocked, table, id, waiterId]);
 
-  useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales, nota, total, waiter_id: waiterId }, saveOccupation);
+  useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales, nota, total }, saveOccupation);
 
   const handleSave = () => {
     saveOccupation({
@@ -83,7 +87,6 @@ export function TableDetailPage() {
       comensales: comensales === '' ? 1 : comensales,
       nota,
       total,
-      waiter_id: waiterId,
     });
   };
 
@@ -148,7 +151,7 @@ export function TableDetailPage() {
             <select
               className="input py-1 px-2 text-sm w-48"
               value={waiterId || ''}
-              onChange={e => setWaiterId(e.target.value ? Number(e.target.value) : null)}
+              onChange={e => assignWaiter(e.target.value ? Number(e.target.value) : null)}
               disabled={blocked}
             >
               <option value="">Sin asignar</option>

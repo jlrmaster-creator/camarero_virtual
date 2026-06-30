@@ -6,6 +6,15 @@ interface TableCardProps {
   disabled?: boolean;
 }
 
+const WAITER_COLORS = [
+  '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6',
+  '#f59e0b', '#06b6d4', '#84cc16', '#f97316',
+];
+
+function waiterColor(id: number): string {
+  return WAITER_COLORS[((id * 7) % WAITER_COLORS.length + WAITER_COLORS.length) % WAITER_COLORS.length];
+}
+
 function statusColor(table: TableWithMeta): string {
   if (table.blocked_by_other) return 'bg-purple-600';
   switch (table.status) {
@@ -35,6 +44,12 @@ export function TableCard({ table, disabled }: TableCardProps) {
         ${disabled ? 'opacity-75 cursor-not-allowed' : 'active:scale-95 cursor-pointer'}
       `}
     >
+      {table.waiter_id != null && (
+        <span
+          className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 rounded-full"
+          style={{ backgroundColor: waiterColor(table.waiter_id) }}
+        />
+      )}
       <span className="text-lg leading-tight">{table.nombre?.replace(/^Mesa\s*/, '') || String(table.numero)}</span>
       {table.occupation && (
         <span className="text-xs mt-1 opacity-90 flex flex-col items-center">
@@ -43,6 +58,9 @@ export function TableCard({ table, disabled }: TableCardProps) {
             <span className="font-semibold">{table.occupation.total.toFixed(2)}€</span>
           )}
         </span>
+      )}
+      {!table.occupation && table.waiter_nombre && (
+        <span className="text-xs mt-1 opacity-80">{table.waiter_nombre}</span>
       )}
       {table.blocked_by_other && (
         <span className="text-[10px] mt-0.5 opacity-80">Bloqueada</span>

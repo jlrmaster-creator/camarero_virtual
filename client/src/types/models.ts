@@ -8,6 +8,7 @@ export interface Table {
   numero: number;
   nombre: string;
   status: TableStatus;
+  waiter_id?: number | null;
 }
 
 export interface Occupation {

@@ -68,7 +68,7 @@ export const store = {
     return localWithOccupation(table);
   },
 
-  async updateTable(id: number, data: { nombre?: string; status?: string }): Promise<Table> {
+  async updateTable(id: number, data: Partial<Table>): Promise<Table> {
     if (_source === 'firebase') {
       if (!_firebaseStore) throw new Error('Firebase store not initialized');
       const t = await _firebaseStore.tables.update(id, data as Partial<Table>);
