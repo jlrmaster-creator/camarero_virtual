@@ -10,7 +10,6 @@ import {
   orderBy,
   limit,
   serverTimestamp,
-  waitForPendingWrites,
   type Firestore,
   type DocumentSnapshot,
   type DocumentData,
@@ -118,17 +117,6 @@ export function createFirestoreStore(companyId: string) {
         const database = getDb();
         const ref = docRef(database, companyId, TABLES_COL, String(id));
         await setDoc(ref, data, { merge: true });
-        // Esperar confirmación del servidor (timeout 8s)
-        try {
-          await Promise.race([
-            waitForPendingWrites(database),
-            new Promise<void>((_, reject) =>
-              setTimeout(() => reject(new Error('Firestore write not confirmed within 8s')), 8000)
-            ),
-          ]);
-        } catch (e) {
-          console.warn('[firebaseStore] write confirm issue (data may still persist):', e);
-        }
         return this.getById(id);
       },
     },
