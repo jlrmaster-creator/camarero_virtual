@@ -150,6 +150,19 @@ export const store = {
     return local.localProducts.create(data);
   },
 
+  async updateProduct(id: number, data: { nombre?: string; precio?: number }): Promise<Product> {
+    if (_source === 'firebase') {
+      if (!_firebaseStore) throw new Error('Firebase store not initialized');
+      const p = await _firebaseStore.products.update(id, data);
+      if (!p) throw new Error('Product not found');
+      return p;
+    }
+    if (_source === 'api') return api.put<Product>(`/products/${id}`, data);
+    const p = local.localProducts.update(id, data);
+    if (!p) throw new Error('Product not found');
+    return p;
+  },
+
   async deleteProduct(id: number): Promise<void> {
     if (_source === 'firebase') {
       if (!_firebaseStore) throw new Error('Firebase store not initialized');

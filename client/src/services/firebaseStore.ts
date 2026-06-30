@@ -149,6 +149,14 @@ export function createFirestoreStore(companyId: string) {
         return { id: parseInt(ref.id, 36), ...data };
       },
 
+      async update(id: number, data: { nombre?: string; precio?: number }): Promise<Product | undefined> {
+        const database = getDb();
+        const ref = docRef(database, companyId, PRODUCTS_COL, String(id));
+        await setDoc(ref, data, { merge: true });
+        const snap = await getDoc(ref);
+        return docData<Product>(snap);
+      },
+
       async delete(id: number): Promise<void> {
         const database = getDb();
         await deleteDoc(docRef(database, companyId, PRODUCTS_COL, String(id)));
