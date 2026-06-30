@@ -6,7 +6,13 @@ import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
 import { generateTicket } from '@/utils/ticket';
-import type { Zone } from '@/types/models';
+import type { Zone, OrderItem, Product } from '@/types/models';
+
+let itemIdCounter = 0;
+function nextItemId(): string {
+  itemIdCounter += 1;
+  return `item_${itemIdCounter}`;
+}
 
 export function TableDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,8 +27,7 @@ export function TableDetailPage() {
   const [loading, setLoading] = useState(true);
   const [cliente, setCliente] = useState('');
   const [comensales, setComensales] = useState<number | ''>(1);
-  const [nota, setNota] = useState('');
-  const [total, setTotal] = useState(0);
+  const [items, setItems] = useState<OrderItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [blockedByOther, setBlockedByOther] = useState(false);
@@ -39,13 +44,11 @@ export function TableDetailPage() {
       if (occ) {
         setCliente(occ.cliente as string);
         setComensales(occ.comensales as number);
-        setNota(occ.nota as string);
-        setTotal(occ.total as number);
+        setItems((occ.items as OrderItem[]) ?? []);
       } else {
         setCliente('');
         setComensales(1);
-        setNota('');
-        setTotal(0);
+        setItems([]);
       }
 
       const allWaiters = await store.getWaiters();
@@ -85,34 +88,54 @@ export function TableDetailPage() {
   const waiterId = currentWaiter?.id ?? (table?.waiter_id as number | null) ?? null;
   const blocked = noShift || blockedByOther;
 
-  const saveOccupation = useCallback(async (data: { cliente: string; comensales: number; nota: string; total: number }) => {
+  const total = items.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
+
+  const addItem = (product: Product) => {
+    const existing = items.find(i => i.nombre === product.nombre && i.precio === product.precio);
+    if (existing) {
+      setItems(prev => prev.map(i => i.id === existing.id ? { ...i, cantidad: i.cantidad + 1 } : i));
+    } else {
+      setItems(prev => [...prev, { id: nextItemId(), nombre: product.nombre, precio: product.precio, cantidad: 1 }]);
+    }
+  };
+
+  const updateQty = (itemId: string, delta: number) => {
+    setItems(prev => prev.map(i => {
+      if (i.id !== itemId) return i;
+      const newQty = i.cantidad + delta;
+      return newQty <= 0 ? i : { ...i, cantidad: newQty };
+    }));
+  };
+
+  const removeItem = (itemId: string) => {
+    setItems(prev => prev.filter(i => i.id !== itemId));
+  };
+
+  const saveOccupation = useCallback(async (data: { cliente: string; comensales: number }) => {
     if (blocked || !table || !id) return;
     const occ = table.occupation as Record<string, unknown> | null;
+    const payload = { ...data, waiter_id: waiterId, items, total };
     if (occ) {
-      await store.updateOccupation(occ.id as number, { ...data, waiter_id: waiterId });
-    } else if (data.cliente || data.nota) {
+      await store.updateOccupation(occ.id as number, payload);
+    } else if (data.cliente || items.length > 0) {
       const newOcc = await store.createOccupation({
         table_id: Number(id),
-        ...data,
-        waiter_id: waiterId,
+        ...payload,
       });
       setTable(prev => prev ? { ...prev, status: 'occupied', occupation: newOcc } : prev);
     }
-  }, [blocked, table, id, waiterId]);
+  }, [blocked, table, id, waiterId, items, total]);
 
-  useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales, nota, total }, saveOccupation);
+  useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales }, data =>
+    saveOccupation({ ...data })
+  );
 
   const handleSave = async () => {
     if (blocked || !id) return;
     setSaving(true);
     setErrorMsg('');
     try {
-      await saveOccupation({
-        cliente,
-        comensales: comensales === '' ? 1 : comensales,
-        nota,
-        total,
-      });
+      await saveOccupation({ cliente, comensales: comensales === '' ? 1 : comensales });
       setErrorMsg('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al guardar. Comprueba tu conexión.';
@@ -139,13 +162,14 @@ export function TableDetailPage() {
   const handleTicket = () => {
     const nombre = (table?.nombre as string) ?? '';
     const tableName = nombre.replace(/^Mesa\s*/, '') || String(table?.numero ?? '');
+    const itemsText = items.map(i => `${i.cantidad}x ${i.nombre} — ${(i.precio * i.cantidad).toFixed(2)}€`).join('\n');
     generateTicket({
       tableName,
       zone: returnZone === 'interior' ? 'Interior' : 'Terraza',
       waiterName: assignedWaiterName,
       cliente,
       comensales: comensales === '' ? 1 : comensales,
-      nota,
+      nota: itemsText,
       total,
     });
   };
@@ -239,27 +263,52 @@ export function TableDetailPage() {
       </div>
 
       <div className="card space-y-3">
-        <h3 className="font-semibold">Comanda</h3>
-        <ProductAutocomplete value={nota} onChange={blocked ? () => {} : setNota} />
+        <h3 className="font-semibold">Pedido</h3>
+        <ProductAutocomplete onAddProduct={addItem} disabled={blocked} />
+
+        <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          {items.length === 0 && (
+            <p className="text-sm text-slate-500 py-2">No hay productos añadidos</p>
+          )}
+          {items.map(item => (
+            <div key={item.id} className="flex items-center gap-2 py-2 text-sm">
+              <span className="flex-1 truncate">{item.nombre}</span>
+              <span className="text-slate-400 w-12 text-right">{item.precio.toFixed(2)}€</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => updateQty(item.id, -1)}
+                  className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center disabled:opacity-30"
+                  disabled={blocked || item.cantidad <= 1}
+                >
+                  −
+                </button>
+                <span className="w-6 text-center font-medium">{item.cantidad}</span>
+                <button
+                  onClick={() => updateQty(item.id, 1)}
+                  className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center"
+                  disabled={blocked}
+                >
+                  +
+                </button>
+              </div>
+              <span className="w-16 text-right font-medium">{(item.precio * item.cantidad).toFixed(2)}€</span>
+              <button
+                onClick={() => removeItem(item.id)}
+                className="text-red-400 hover:text-red-300 text-xs font-bold ml-1"
+                disabled={blocked}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="card space-y-3">
         <h3 className="font-semibold">Total</h3>
         <div className="text-2xl font-bold">{total.toFixed(2)}€</div>
-        <div className="flex gap-2 flex-wrap">
-          {[0, 5, 10, 15, 20, 30, 50].map(amount => (
-            <button
-              key={amount}
-              onClick={() => { if (!blocked) setTotal(prev => prev + amount); }}
-              className={`btn-primary text-sm flex-1 min-w-[60px] ${blocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-              disabled={blocked}
-            >
-              +{amount}€
-            </button>
-          ))}
-        </div>
         {!blocked && (
-          <button onClick={handleSave} disabled={saving} className="btn-primary w-full mt-2">
+          <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
             {saving ? 'Guardando...' : 'Guardar Pedido'}
           </button>
         )}

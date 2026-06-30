@@ -11,6 +11,13 @@ export interface Table {
   waiter_id?: number | null;
 }
 
+export interface OrderItem {
+  id: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+}
+
 export interface Occupation {
   id: number;
   table_id: number;
@@ -18,6 +25,7 @@ export interface Occupation {
   cliente: string;
   comensales: number;
   nota: string;
+  items?: OrderItem[];
   fecha_creacion: string;
   fecha_actualizacion: string;
   fecha_expiracion: string;
