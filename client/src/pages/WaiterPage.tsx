@@ -3,6 +3,26 @@ import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
 import { store } from '@/services/store';
 import type { Waiter } from '@/types/models';
+import type { Zone } from '@/types/models';
+
+function parseTableInput(input: string): number[] {
+  const parts = input.split(',').map(s => s.trim()).filter(Boolean);
+  const result: number[] = [];
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [a, b] = part.split('-').map(s => parseInt(s.trim(), 10));
+      if (!isNaN(a) && !isNaN(b)) {
+        const start = Math.min(a, b);
+        const end = Math.max(a, b);
+        for (let i = start; i <= end; i++) result.push(i);
+      }
+    } else {
+      const num = parseInt(part, 10);
+      if (!isNaN(num)) result.push(num);
+    }
+  }
+  return [...new Set(result)].sort((a, b) => a - b);
+}
 
 export function WaiterPage() {
   const { currentWaiter, setCurrentWaiter, activeWaiters, refresh } = useWaiter();
@@ -12,9 +32,12 @@ export function WaiterPage() {
   const [showAll, setShowAll] = useState(false);
   const isAdmin = role === 'admin';
 
-  // Assignment state per waiter
-  const [assignInput, setAssignInput] = useState<Record<number, string>>({});
-  const [allTableNumbers, setAllTableNumbers] = useState<number[]>([]);
+  interface TableMapEntry { docId: number; nombre: string; numero: number }
+  const [interiorTables, setInteriorTables] = useState<TableMapEntry[]>([]);
+  const [terrazaTables, setTerrazaTables] = useState<TableMapEntry[]>([]);
+
+  const [intInput, setIntInput] = useState<Record<number, string>>({});
+  const [extInput, setExtInput] = useState<Record<number, string>>({});
 
   if (roleReady && !isAdmin) {
     return (
@@ -33,14 +56,20 @@ export function WaiterPage() {
     if (showAll) fetchAll();
   }, [showAll, user?.uid]);
 
-  // Fetch all table numbers for assignment validation
   useEffect(() => {
     store.getTables().then(tables => {
-      const nums = tables
-        .map(t => t.numero as number)
-        .filter((n): n is number => n != null)
-        .sort((a, b) => a - b);
-      setAllTableNumbers(nums);
+      const interior: TableMapEntry[] = [];
+      const terraza: TableMapEntry[] = [];
+      for (const t of tables) {
+        const zone = t.zone as Zone;
+        const entry = { docId: parseInt(String(t.id), 10), nombre: t.nombre as string, numero: t.numero as number };
+        if (zone === 'interior') interior.push(entry);
+        else if (zone === 'terraza') terraza.push(entry);
+      }
+      interior.sort((a, b) => a.numero - b.numero);
+      terraza.sort((a, b) => a.numero - b.numero);
+      setInteriorTables(interior);
+      setTerrazaTables(terraza);
     }).catch(() => {});
   }, []);
 
@@ -70,17 +99,21 @@ export function WaiterPage() {
     if (showAll) await fetchAll();
   };
 
-  const handleAssignTable = async (waiterId: number) => {
-    const raw = assignInput[waiterId]?.trim();
-    if (!raw) return;
-    const num = parseInt(raw, 10);
-    if (isNaN(num) || !allTableNumbers.includes(num)) {
-      console.warn(`[WaiterPage] Mesa ${num} no existe`);
-      return;
-    }
+  const handleAssign = async (waiterId: number, zone: 'interior' | 'terraza') => {
+    const raw = zone === 'interior' ? intInput[waiterId] : extInput[waiterId];
+    if (!raw?.trim()) return;
+    const tableMap = zone === 'interior' ? interiorTables : terrazaTables;
+    const nums = parseTableInput(raw);
+    const docIds = nums
+      .map(n => tableMap.find(t => t.numero === n)?.docId)
+      .filter((id): id is number => id != null);
+    if (docIds.length === 0) return;
     try {
-      await store.assignTable(waiterId, num);
-      setAssignInput(prev => ({ ...prev, [waiterId]: '' }));
+      for (const docId of docIds) {
+        await store.assignTable(waiterId, docId);
+      }
+      if (zone === 'interior') setIntInput(prev => ({ ...prev, [waiterId]: '' }));
+      else setExtInput(prev => ({ ...prev, [waiterId]: '' }));
       await refresh();
       if (showAll) await fetchAll();
     } catch (e) {
@@ -88,14 +121,26 @@ export function WaiterPage() {
     }
   };
 
-  const handleUnassignTable = async (waiterId: number, tableId: number) => {
+  const handleUnassignTable = async (waiterId: number, tableDocId: number) => {
     try {
-      await store.unassignTable(waiterId, tableId);
+      await store.unassignTable(waiterId, tableDocId);
       await refresh();
       if (showAll) await fetchAll();
     } catch (e) {
       console.error('[WaiterPage] unassign failed:', e);
     }
+  };
+
+  const tableLabel = (docId: number): string => {
+    const all = [...interiorTables, ...terrazaTables];
+    const found = all.find(t => t.docId === docId);
+    return found ? found.nombre.replace(/^Mesa\s*/, '') : `#${docId}`;
+  };
+
+  const tableZone = (docId: number): Zone | null => {
+    if (interiorTables.some(t => t.docId === docId)) return 'interior';
+    if (terrazaTables.some(t => t.docId === docId)) return 'terraza';
+    return null;
   };
 
   return (
@@ -139,6 +184,8 @@ export function WaiterPage() {
               {activeWaiters.map(w => {
                 const isMe = currentWaiter?.id === w.id;
                 const assigned = w.assigned_table_ids ?? [];
+                const intAssigned = assigned.filter(docId => tableZone(docId) === 'interior');
+                const extAssigned = assigned.filter(docId => tableZone(docId) === 'terraza');
                 return (
                   <div key={w.id} className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg space-y-2">
                     <div className="flex justify-between items-center">
@@ -155,45 +202,72 @@ export function WaiterPage() {
                       </button>
                     </div>
 
-                    {/* Assigned tables */}
+                    {/* Interior tables */}
                     <div>
-                      <p className="text-xs text-slate-500 mb-1">Mesas asignadas:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {assigned.length === 0 && (
-                          <span className="text-xs text-slate-400">Ninguna</span>
-                        )}
-                        {assigned.map(tid => (
+                      <p className="text-xs font-medium text-slate-400 mb-1">Interior:</p>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {intAssigned.length === 0 && <span className="text-xs text-slate-500">—</span>}
+                        {intAssigned.map(docId => (
                           <span
-                            key={tid}
-                            className="inline-flex items-center gap-1 bg-blue-600/20 text-blue-300 text-xs px-2 py-0.5 rounded-full"
+                            key={docId}
+                            className="inline-flex items-center gap-1 bg-slate-600 text-slate-100 text-xs px-2 py-0.5 rounded-full"
                           >
-                            Mesa {tid}
+                            {tableLabel(docId)}
                             <button
-                              onClick={() => handleUnassignTable(w.id, tid)}
-                              className="text-blue-300/60 hover:text-blue-100 ml-0.5"
+                              onClick={() => handleUnassignTable(w.id, docId)}
+                              className="text-slate-400 hover:text-white ml-0.5"
                             >
                               &times;
                             </button>
                           </span>
                         ))}
                       </div>
+                      <div className="flex gap-2">
+                        <input
+                          className="input py-1 px-2 text-sm flex-1"
+                          placeholder="Nºs (ej: 1,2,3 o 1-10)"
+                          value={intInput[w.id] ?? ''}
+                          onChange={e => setIntInput(prev => ({ ...prev, [w.id]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAssign(w.id, 'interior'); }}
+                        />
+                        <button onClick={() => handleAssign(w.id, 'interior')} className="btn-primary text-xs">
+                          Asignar
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Add table input */}
-                    <div className="flex gap-2">
-                      <input
-                        className="input py-1 px-2 text-sm flex-1"
-                        placeholder="Nº mesa (ej: 5)"
-                        value={assignInput[w.id] ?? ''}
-                        onChange={e => setAssignInput(prev => ({ ...prev, [w.id]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === 'Enter') handleAssignTable(w.id); }}
-                      />
-                      <button
-                        onClick={() => handleAssignTable(w.id)}
-                        className="btn-primary text-xs"
-                      >
-                        Añadir
-                      </button>
+                    {/* Terrace tables */}
+                    <div>
+                      <p className="text-xs font-medium text-slate-400 mb-1">Terraza:</p>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {extAssigned.length === 0 && <span className="text-xs text-slate-500">—</span>}
+                        {extAssigned.map(docId => (
+                          <span
+                            key={docId}
+                            className="inline-flex items-center gap-1 bg-slate-600 text-slate-100 text-xs px-2 py-0.5 rounded-full"
+                          >
+                            {tableLabel(docId)}
+                            <button
+                              onClick={() => handleUnassignTable(w.id, docId)}
+                              className="text-slate-400 hover:text-white ml-0.5"
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          className="input py-1 px-2 text-sm flex-1"
+                          placeholder="Nºs (ej: 1,2,3 o 1-10)"
+                          value={extInput[w.id] ?? ''}
+                          onChange={e => setExtInput(prev => ({ ...prev, [w.id]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAssign(w.id, 'terraza'); }}
+                        />
+                        <button onClick={() => handleAssign(w.id, 'terraza')} className="btn-primary text-xs">
+                          Asignar
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

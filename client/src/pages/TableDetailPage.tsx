@@ -11,7 +11,7 @@ export function TableDetailPage() {
   const navigate = useNavigate();
   const { currentWaiter } = useWaiter();
   const { role } = useAuth();
-  const blocked = role === 'waiter' && !currentWaiter;
+  const noShift = role === 'waiter' && !currentWaiter;
 
   const [table, setTable] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,8 @@ export function TableDetailPage() {
   const [total, setTotal] = useState(0);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [blockedByOther, setBlockedByOther] = useState(false);
+  const [assignedWaiterName, setAssignedWaiterName] = useState('Sin asignar');
 
   const fetchTable = useCallback(async () => {
     if (!id) return;
@@ -39,21 +41,44 @@ export function TableDetailPage() {
         setNota('');
         setTotal(0);
       }
+
+      // Resolve waiter from assignments and check blocking
+      const allWaiters = await store.getWaiters();
+      const tableDocId = parseInt(id, 10);
+      let effectiveWaiterId: number | null = null;
+      let resolvedName = 'Sin asignar';
+      for (const w of allWaiters) {
+        if (w.assigned_table_ids?.includes(tableDocId)) {
+          effectiveWaiterId = w.id;
+          resolvedName = w.nombre;
+          break;
+        }
+      }
+      const occWaiterId = occ?.waiter_id as number | null ?? null;
+      if (occWaiterId) {
+        effectiveWaiterId = occWaiterId;
+        const occWaiter = allWaiters.find(w => w.id === occWaiterId);
+        if (occWaiter) resolvedName = occWaiter.nombre;
+      }
+
+      setAssignedWaiterName(resolvedName);
+      setBlockedByOther(
+        role === 'waiter' && currentWaiter !== null && effectiveWaiterId !== null && effectiveWaiterId !== currentWaiter.id
+      );
     } catch (e) {
       console.error('[TableDetailPage] fetch table failed:', e);
       navigate('/tables');
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, role, currentWaiter]);
 
   useEffect(() => {
     fetchTable();
   }, [fetchTable]);
 
-  // waiter for occupation: currentWaiter (if logged in) else the table's assigned waiter
   const waiterId = currentWaiter?.id ?? (table?.waiter_id as number | null) ?? null;
-  const assignedWaiterName = (table?.waiter_nombre as string | null) || 'Sin asignar';
+  const blocked = noShift || blockedByOther;
 
   const saveOccupation = useCallback(async (data: { cliente: string; comensales: number; nota: string; total: number }) => {
     if (blocked || !table || !id) return;
@@ -131,9 +156,15 @@ export function TableDetailPage() {
         ← Volver
       </button>
 
-      {blocked && (
+      {noShift && (
         <div className="bg-yellow-900/50 text-yellow-300 px-4 py-3 rounded-lg text-sm text-center">
           No tienes un turno activo. No puedes modificar esta mesa hasta que un administrador active tu turno.
+        </div>
+      )}
+
+      {blockedByOther && (
+        <div className="bg-red-900/50 text-red-200 px-4 py-3 rounded-lg text-sm text-center">
+          Esta mesa está asignada a otro camarero. No puedes modificarla.
         </div>
       )}
 
@@ -158,7 +189,9 @@ export function TableDetailPage() {
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Camarero Asignado</h3>
-          <span className="text-sm text-slate-400">{assignedWaiterName}</span>
+          <span className={`text-sm ${blockedByOther ? 'text-red-400 font-medium' : 'text-slate-400'}`}>
+            {assignedWaiterName}
+          </span>
         </div>
         <p className="text-xs text-slate-500">
           La asignación se gestiona desde la pantalla de Camareros.

@@ -66,9 +66,9 @@ export function useTables(zone: Zone = 'interior') {
     }
     return rawTables.map(t => {
       const tid = String(t.id);
-      const tableNum = t.numero as number;
+      const tableDocId = parseInt(tid, 10);
       const occupation = occMap.get(tid) ?? null;
-      const assignedWaiterId = tableAssignmentMap.get(tableNum) ?? null;
+      const assignedWaiterId = tableDocId ? (tableAssignmentMap.get(tableDocId) ?? null) : null;
       const occWaiterId = occupation?.waiter_id;
       const resolveWaiterId = occWaiterId ?? assignedWaiterId;
       const occupiedByOther = occupation !== null && occWaiterId !== null && occWaiterId !== undefined
