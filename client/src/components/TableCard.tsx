@@ -3,6 +3,7 @@ import type { TableWithMeta } from '@/hooks/useTables';
 
 interface TableCardProps {
   table: TableWithMeta;
+  disabled?: boolean;
 }
 
 function statusColor(table: TableWithMeta): string {
@@ -17,16 +18,21 @@ function statusColor(table: TableWithMeta): string {
   }
 }
 
-export function TableCard({ table }: TableCardProps) {
+function zoneBorder(table: TableWithMeta): string {
+  return table.zone === 'interior' ? 'border-t-4 border-blue-400' : 'border-t-4 border-amber-400';
+}
+
+export function TableCard({ table, disabled }: TableCardProps) {
   const navigate = useNavigate();
 
   return (
     <button
-      onClick={() => navigate(`/tables/${table.id}`)}
+      onClick={disabled ? undefined : () => navigate(`/tables/${table.id}`)}
       className={`
         relative flex flex-col items-center justify-center p-3 rounded-xl
-        text-white font-bold shadow-md active:scale-95 transition-transform
-        min-h-[80px] ${statusColor(table)}
+        text-white font-bold shadow-md transition-transform
+        min-h-[80px] ${statusColor(table)} ${zoneBorder(table)}
+        ${disabled ? 'opacity-75 cursor-not-allowed' : 'active:scale-95 cursor-pointer'}
       `}
     >
       <span className="text-lg leading-tight">{table.nombre || `Mesa ${table.numero}`}</span>
@@ -39,6 +45,9 @@ export function TableCard({ table }: TableCardProps) {
       {table.blocked_by_other && (
         <span className="text-[10px] mt-0.5 opacity-80">Bloqueada</span>
       )}
+      <span className="absolute top-1 right-1 text-[10px] opacity-60">
+        {table.zone === 'interior' ? 'INT' : 'TER'}
+      </span>
     </button>
   );
 }

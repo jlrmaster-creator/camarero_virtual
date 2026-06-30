@@ -1,3 +1,5 @@
+import { useAuth } from '@/context/AuthContext';
+import { useWaiter } from '@/context/WaiterContext';
 import { TableCard } from './TableCard';
 import type { TableWithMeta } from '@/hooks/useTables';
 
@@ -8,6 +10,10 @@ interface TableGridProps {
 }
 
 export function TableGrid({ tables, loading, error }: TableGridProps) {
+  const { role } = useAuth();
+  const { currentWaiter } = useWaiter();
+  const waiterInactive = role === 'waiter' && !currentWaiter;
+
   if (loading) {
     return (
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -35,10 +41,17 @@ export function TableGrid({ tables, loading, error }: TableGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-      {tables.map(table => (
-        <TableCard key={table.id} table={table} />
-      ))}
+    <div className="space-y-3">
+      {waiterInactive && (
+        <div className="bg-yellow-900/50 text-yellow-300 px-4 py-3 rounded-lg text-sm text-center">
+          No tienes un turno activo. Pide a un administrador que active tu turno para poder gestionar mesas.
+        </div>
+      )}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+        {tables.map(table => (
+          <TableCard key={table.id} table={table} disabled={waiterInactive} />
+        ))}
+      </div>
     </div>
   );
 }
