@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { DataSourceProvider, useDataSource } from '@/context/DataSourceContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { WaiterProvider } from '@/context/WaiterContext';
 import { Layout } from '@/components/Layout';
@@ -21,23 +20,14 @@ function LoadingScreen({ label }: { label: string }) {
 }
 
 function AppRoutes() {
-  const { checked, source } = useDataSource();
   const { user, loading: authLoading } = useAuth();
 
-  if (!checked) {
-    return <LoadingScreen label="Detectando modo de conexión..." />;
+  if (authLoading) {
+    return <LoadingScreen label="Verificando sesión..." />;
   }
 
-  // Firebase mode requires authentication
-  if (source === 'firebase') {
-    if (authLoading) {
-      return <LoadingScreen label="Verificando sesión..." />;
-    }
-    if (!user) {
-      return <LoginPage />;
-    }
-    // Logged in but no company → let them register one
-    // (handled inside LoginPage via the registerCompany function)
+  if (!user) {
+    return <LoginPage />;
   }
 
   return (
@@ -48,10 +38,8 @@ function AppRoutes() {
         <Route path="/tables/:id" element={<TableDetailPage />} />
         <Route path="/config" element={<ConfigPage />} />
         <Route path="/waiter" element={<WaiterPage />} />
-        <Route path="/admin" element={source === 'firebase' ? <AdminPage /> : <Navigate to="/tables" replace />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Route>
-      {/* Login is rendered outside Layout when unauthenticated */}
-      {source !== 'firebase' && <Route path="/login" element={<LoginPage />} />}
     </Routes>
   );
 }
@@ -59,13 +47,11 @@ function AppRoutes() {
 export function App() {
   return (
     <ErrorBoundary>
-      <DataSourceProvider>
-        <AuthProvider>
-          <WaiterProvider>
-            <AppRoutes />
-          </WaiterProvider>
-        </AuthProvider>
-      </DataSourceProvider>
+      <AuthProvider>
+        <WaiterProvider>
+          <AppRoutes />
+        </WaiterProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

@@ -1,14 +1,10 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { useDataSource } from '@/context/DataSourceContext';
 import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
 
 export function Layout() {
-  const { source, label } = useDataSource();
   const { currentWaiter } = useWaiter();
   const { user, company, role, logOut } = useAuth();
-
-  const isFirebase = source === 'firebase';
 
   const isAdmin = role === 'admin';
   const navItems = [
@@ -16,11 +12,8 @@ export function Layout() {
     { to: '/config', label: 'Catálogo' },
   ];
 
-  if (isAdmin || (!isFirebase)) {
+  if (isAdmin) {
     navItems.push({ to: '/waiter', label: 'Camareros' });
-  }
-  
-  if (isFirebase && isAdmin) {
     navItems.push({ to: '/admin', label: 'Admin' });
   }
 
@@ -29,15 +22,12 @@ export function Layout() {
       <header className="bg-slate-800 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-lg font-bold">CamareroVirtual</span>
-          <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
-            {label}
-          </span>
         </div>
         <div className="flex items-center gap-3">
           {currentWaiter && (
             <span className="text-sm text-slate-300">{currentWaiter.nombre}</span>
           )}
-          {isFirebase && user && (
+          {user && (
             <span className="text-xs text-slate-400 hidden sm:inline">
               {company?.name} / {role}
             </span>

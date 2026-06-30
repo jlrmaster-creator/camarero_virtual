@@ -1,15 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { store } from '@/services/store';
-import { useDataSource } from '@/context/DataSourceContext';
 import type { Waiter } from '@/types/models';
 
 export function useWaiters() {
   const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [loading, setLoading] = useState(true);
-  const { checked } = useDataSource();
 
   const fetch = useCallback(async () => {
-    if (!checked) return;
     try {
       const data = await store.getWaiters();
       setWaiters(data);
@@ -18,7 +15,7 @@ export function useWaiters() {
     } finally {
       setLoading(false);
     }
-  }, [checked]);
+  }, []);
 
   useEffect(() => {
     fetch();

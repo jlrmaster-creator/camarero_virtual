@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { onSnapshot, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { store, getStoreSource } from '@/services/store';
+import { store } from '@/services/store';
 import { getDb } from '@/firebase/init';
 import { useAuth } from '@/context/AuthContext';
 import { useWaiter } from '@/context/WaiterContext';
@@ -23,19 +23,19 @@ async function fetchActiveOccupations(companyId: string): Promise<Map<string, Oc
   const db = getDb();
   const ref = collection(db, 'companies', companyId, 'occupations');
   const q = query(ref, where('active', '==', true));
-    try {
-      const snap = await getDocs(q);
-      const map = new Map<string, Occupation>();
-      snap.docs.forEach(d => {
-        const data = d.data() as Record<string, unknown>;
-        const tableId = String(data.table_id);
-        map.set(tableId, { id: d.id, ...data } as unknown as Occupation);
-      });
-      return map;
-    } catch (e) {
-      console.error('[useTables] fetchActiveOccupations failed:', e);
-      throw e;
-    }
+  try {
+    const snap = await getDocs(q);
+    const map = new Map<string, Occupation>();
+    snap.docs.forEach(d => {
+      const data = d.data() as Record<string, unknown>;
+      const tableId = String(data.table_id);
+      map.set(tableId, { id: d.id, ...data } as unknown as Occupation);
+    });
+    return map;
+  } catch (e) {
+    console.error('[useTables] fetchActiveOccupations failed:', e);
+    throw e;
+  }
 }
 
 export function useTables(zone: Zone = 'interior') {
@@ -44,9 +44,6 @@ export function useTables(zone: Zone = 'interior') {
   const [error, setError] = useState<string | null>(null);
   const { company } = useAuth();
   const { currentWaiter } = useWaiter();
-  const source = getStoreSource();
-  const isFirebase = source === 'firebase';
-  const unsubRef = useRef<(() => void) | null>(null);
 
   const enrichWithOccupations = useCallback(async (rawTables: Record<string, unknown>[]) => {
     if (!company) return rawTables as TableWithMeta[];
@@ -102,11 +99,6 @@ export function useTables(zone: Zone = 'interior') {
   }, [zone, enrichWithOccupations]);
 
   useEffect(() => {
-    if (!isFirebase) {
-      fetchTables();
-      return;
-    }
-
     if (!company) return;
 
     fetchTables();
@@ -115,14 +107,14 @@ export function useTables(zone: Zone = 'interior') {
     const ref = collection(db, 'companies', company.id, 'tables');
     const q = query(ref, where('zone', '==', zone), orderBy('numero'));
 
-    unsubRef.current = onSnapshot(
+    const unsub = onSnapshot(
       q,
       async (snap) => {
         try {
           const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, unknown>));
           const enriched = await enrichWithOccupations(docs);
           setTables(enriched);
-        }       catch (err) {
+        } catch (err) {
           console.error('useTables enrich error', err);
           const docs = snap.docs.map(d => ({
             id: d.id,
@@ -145,19 +137,10 @@ export function useTables(zone: Zone = 'interior') {
     );
 
     return () => {
-      if (unsubRef.current) {
-        unsubRef.current();
-        unsubRef.current = null;
-      }
+      unsub();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFirebase, company?.id, zone, fetchTables, enrichWithOccupations]);
-
-  useEffect(() => {
-    if (isFirebase) return;
-    const interval = setInterval(fetchTables, 5000);
-    return () => clearInterval(interval);
-  }, [isFirebase, fetchTables]);
+  }, [company?.id, zone, fetchTables, enrichWithOccupations]);
 
   return { tables, loading, error, refetch: fetchTables };
 }

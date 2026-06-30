@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import { store, getStoreSource } from '@/services/store';
+import { store } from '@/services/store';
 import { useAuth } from '@/context/AuthContext';
 import type { Waiter } from '@/types/models';
 
@@ -18,7 +18,6 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
   const { user, company } = useAuth();
   const prevUidRef = useRef<string | null>(null);
 
-  // Reset currentWaiter when the Firebase user changes (logout / login)
   const currentUid = user?.uid ?? null;
   if (currentUid !== prevUidRef.current) {
     if (prevUidRef.current !== null) {
@@ -28,13 +27,8 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
   }
 
   const refresh = async () => {
+    if (!company) return;
     try {
-      const source = getStoreSource();
-      if (source !== 'firebase' || !company) {
-        setActiveWaiters([]);
-        return;
-      }
-      
       const allWaiters = await store.getWaiters();
       const active = allWaiters.filter(w => w.activo);
       setActiveWaiters(active);

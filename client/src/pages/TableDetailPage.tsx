@@ -28,10 +28,12 @@ export function TableDetailPage() {
   const [cliente, setCliente] = useState('');
   const [comensales, setComensales] = useState<number | ''>(1);
   const [items, setItems] = useState<OrderItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [blockedByOther, setBlockedByOther] = useState(false);
-  const [assignedWaiterName, setAssignedWaiterName] = useState('Sin asignar');
+const [saving, setSaving] = useState(false);
+const [errorMsg, setErrorMsg] = useState('');
+const [blockedByOther, setBlockedByOther] = useState(false);
+const [assignedWaiterName, setAssignedWaiterName] = useState('Sin asignar');
+const [newProductName, setNewProductName] = useState('');
+const [newProductPrice, setNewProductPrice] = useState('');
 
   const goBack = useCallback(() => navigate('/tables', { state: { zone: returnZone } }), [navigate, returnZone]);
 
@@ -111,22 +113,22 @@ export function TableDetailPage() {
     setItems(prev => prev.filter(i => i.id !== itemId));
   };
 
-  const saveOccupation = useCallback(async (data: { cliente: string; comensales: number }) => {
+  const saveOccupation = useCallback(async (data: { cliente: string; comensales: number; items: OrderItem[]; total: number }) => {
     if (blocked || !table || !id) return;
     const occ = table.occupation as Record<string, unknown> | null;
-    const payload = { ...data, waiter_id: waiterId, items, total };
+    const payload = { cliente: data.cliente, comensales: data.comensales, waiter_id: waiterId, items: data.items, total: data.total };
     if (occ) {
       await store.updateOccupation(occ.id as number, payload);
-    } else if (data.cliente || items.length > 0) {
+    } else if (data.cliente || data.items.length > 0) {
       const newOcc = await store.createOccupation({
         table_id: Number(id),
         ...payload,
       });
       setTable(prev => prev ? { ...prev, status: 'occupied', occupation: newOcc } : prev);
     }
-  }, [blocked, table, id, waiterId, items, total]);
+  }, [blocked, table, id, waiterId]);
 
-  useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales }, data =>
+  useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales, items, total }, data =>
     saveOccupation({ ...data })
   );
 
@@ -135,13 +137,28 @@ export function TableDetailPage() {
     setSaving(true);
     setErrorMsg('');
     try {
-      await saveOccupation({ cliente, comensales: comensales === '' ? 1 : comensales });
+      await saveOccupation({ cliente, comensales: comensales === '' ? 1 : comensales, items, total });
       setErrorMsg('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al guardar. Comprueba tu conexión.';
       setErrorMsg(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddNewProduct = async () => {
+    if (!newProductName || !newProductPrice || blocked) return;
+    const price = Number(newProductPrice);
+    if (isNaN(price) || price <= 0) return;
+    try {
+      const product = await store.createProduct({ nombre: newProductName.trim(), precio: price, categoria: 'comida' });
+      setNewProductName('');
+      setNewProductPrice('');
+      addItem(product);
+    } catch (e) {
+      setErrorMsg('Error al crear el producto');
+      console.error('[TableDetailPage] create product failed:', e);
     }
   };
 
@@ -303,6 +320,32 @@ export function TableDetailPage() {
           ))}
         </div>
       </div>
+
+      {!blocked && (
+        <div className="card space-y-3">
+          <h3 className="font-semibold">Añadir producto nuevo</h3>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1 min-w-0"
+              placeholder="Nombre del producto"
+              value={newProductName}
+              onChange={e => setNewProductName(e.target.value)}
+            />
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              className="input w-20"
+              placeholder="Precio"
+              value={newProductPrice}
+              onChange={e => setNewProductPrice(e.target.value)}
+            />
+            <button onClick={handleAddNewProduct} className="btn-primary shrink-0">
+              Añadir
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card space-y-3">
         <h3 className="font-semibold">Total</h3>

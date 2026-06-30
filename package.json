@@ -4,20 +4,15 @@
   "private": true,
   "description": "Bar/restaurant table management PWA",
   "scripts": {
-    "dev": "concurrently \"npm run dev -w client\" \"npm run dev -w server\"",
+    "dev": "npm run dev -w client",
     "build": "npm run build -w client",
-    "serve": "npm run build -w client && npm run dev -w server",
-    "lint": "npm run lint -w client && npm run lint -w server",
-    "typecheck": "npm run typecheck -w client && npm run typecheck -w server",
-    "test": "npm run test -w client && npm run test -w server",
-    "clean": "rm -rf node_modules client/node_modules server/node_modules client/dist server/dist *.db",
-    "db:migrate": "npm run db:migrate -w server",
-    "db:seed": "npm run db:seed -w server",
-    "db:reset": "npm run db:reset -w server"
+    "lint": "npm run lint -w client",
+    "typecheck": "npm run typecheck -w client",
+    "test": "npm run test -w client",
+    "clean": "rm -rf node_modules client/node_modules client/dist"
   },
   "workspaces": [
-    "client",
-    "server"
+    "client"
   ],
   "devDependencies": {
     "concurrently": "^8.2.2"
