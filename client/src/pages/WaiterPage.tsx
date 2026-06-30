@@ -12,6 +12,10 @@ export function WaiterPage() {
   const [showAll, setShowAll] = useState(false);
   const isAdmin = role === 'admin';
 
+  // Assignment state per waiter
+  const [assignInput, setAssignInput] = useState<Record<number, string>>({});
+  const [allTableNumbers, setAllTableNumbers] = useState<number[]>([]);
+
   if (roleReady && !isAdmin) {
     return (
       <div className="text-center py-8 text-slate-500">
@@ -28,6 +32,17 @@ export function WaiterPage() {
   useEffect(() => {
     if (showAll) fetchAll();
   }, [showAll, user?.uid]);
+
+  // Fetch all table numbers for assignment validation
+  useEffect(() => {
+    store.getTables().then(tables => {
+      const nums = tables
+        .map(t => t.numero as number)
+        .filter((n): n is number => n != null)
+        .sort((a, b) => a - b);
+      setAllTableNumbers(nums);
+    }).catch(() => {});
+  }, []);
 
   const addWaiter = async () => {
     if (!newName.trim()) return;
@@ -53,6 +68,34 @@ export function WaiterPage() {
     }
     await refresh();
     if (showAll) await fetchAll();
+  };
+
+  const handleAssignTable = async (waiterId: number) => {
+    const raw = assignInput[waiterId]?.trim();
+    if (!raw) return;
+    const num = parseInt(raw, 10);
+    if (isNaN(num) || !allTableNumbers.includes(num)) {
+      console.warn(`[WaiterPage] Mesa ${num} no existe`);
+      return;
+    }
+    try {
+      await store.assignTable(waiterId, num);
+      setAssignInput(prev => ({ ...prev, [waiterId]: '' }));
+      await refresh();
+      if (showAll) await fetchAll();
+    } catch (e) {
+      console.error('[WaiterPage] assign failed:', e);
+    }
+  };
+
+  const handleUnassignTable = async (waiterId: number, tableId: number) => {
+    try {
+      await store.unassignTable(waiterId, tableId);
+      await refresh();
+      if (showAll) await fetchAll();
+    } catch (e) {
+      console.error('[WaiterPage] unassign failed:', e);
+    }
   };
 
   return (
@@ -89,27 +132,69 @@ export function WaiterPage() {
             <button onClick={addWaiter} className="btn-primary">Añadir</button>
           </div>
 
-          {/* Active waiters: can take shift (or switch for admin) */}
+          {/* Active waiters: can take shift + assign tables */}
           {activeWaiters.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">
-                {isAdmin ? 'Camareros activos:' : 'Camareros activos:'}
-              </p>
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Camareros activos:</p>
               {activeWaiters.map(w => {
                 const isMe = currentWaiter?.id === w.id;
+                const assigned = w.assigned_table_ids ?? [];
                 return (
-                  <div key={w.id} className="flex justify-between items-center p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                    <span>{w.nombre}{isMe ? ' (en uso)' : ''}</span>
-                    <button
-                      onClick={() => isMe ? endShift(w.id) : startShift(w.id)}
-                      className={`text-sm px-3 py-1 rounded font-medium ${
-                        isMe
-                          ? 'bg-red-600/20 text-red-300 hover:bg-red-600/40'
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      }`}
-                    >
-                      {isMe ? 'Cerrar' : 'Trabajar'}
-                    </button>
+                  <div key={w.id} className="p-3 bg-slate-100 dark:bg-slate-700 rounded-lg space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{w.nombre}{isMe ? ' (en uso)' : ''}</span>
+                      <button
+                        onClick={() => isMe ? endShift(w.id) : startShift(w.id)}
+                        className={`text-sm px-3 py-1 rounded font-medium ${
+                          isMe
+                            ? 'bg-red-600/20 text-red-300 hover:bg-red-600/40'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
+                      >
+                        {isMe ? 'Cerrar' : 'Trabajar'}
+                      </button>
+                    </div>
+
+                    {/* Assigned tables */}
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Mesas asignadas:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {assigned.length === 0 && (
+                          <span className="text-xs text-slate-400">Ninguna</span>
+                        )}
+                        {assigned.map(tid => (
+                          <span
+                            key={tid}
+                            className="inline-flex items-center gap-1 bg-blue-600/20 text-blue-300 text-xs px-2 py-0.5 rounded-full"
+                          >
+                            Mesa {tid}
+                            <button
+                              onClick={() => handleUnassignTable(w.id, tid)}
+                              className="text-blue-300/60 hover:text-blue-100 ml-0.5"
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Add table input */}
+                    <div className="flex gap-2">
+                      <input
+                        className="input py-1 px-2 text-sm flex-1"
+                        placeholder="Nº mesa (ej: 5)"
+                        value={assignInput[w.id] ?? ''}
+                        onChange={e => setAssignInput(prev => ({ ...prev, [w.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAssignTable(w.id); }}
+                      />
+                      <button
+                        onClick={() => handleAssignTable(w.id)}
+                        className="btn-primary text-xs"
+                      >
+                        Añadir
+                      </button>
+                    </div>
                   </div>
                 );
               })}

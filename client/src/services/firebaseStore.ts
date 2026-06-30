@@ -10,6 +10,8 @@ import {
   orderBy,
   limit,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
   type Firestore,
   type DocumentSnapshot,
   type DocumentData,
@@ -248,6 +250,18 @@ export function createFirestoreStore(companyId: string) {
         await setDoc(ref, { activo: false, fecha_fin: new Date().toISOString() }, { merge: true });
         const snap = await getDoc(ref);
         return docData<Waiter>(snap);
+      },
+
+      async assignTable(waiterId: number, tableId: number): Promise<void> {
+        const database = getDb();
+        const ref = docRef(database, companyId, WAITERS_COL, String(waiterId));
+        await setDoc(ref, { assigned_table_ids: arrayUnion(tableId) }, { merge: true });
+      },
+
+      async unassignTable(waiterId: number, tableId: number): Promise<void> {
+        const database = getDb();
+        const ref = docRef(database, companyId, WAITERS_COL, String(waiterId));
+        await setDoc(ref, { assigned_table_ids: arrayRemove(tableId) }, { merge: true });
       },
     },
   };

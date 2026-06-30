@@ -224,4 +224,22 @@ export const store = {
     if (!w) throw new Error('Waiter not found');
     return w;
   },
+
+  async assignTable(waiterId: number, tableId: number): Promise<void> {
+    if (_source === 'firebase') {
+      if (!_firebaseStore) throw new Error('Firebase store not initialized');
+      await _firebaseStore.waiters.assignTable(waiterId, tableId);
+      return;
+    }
+    throw new Error('assignTable only supported in Firebase mode');
+  },
+
+  async unassignTable(waiterId: number, tableId: number): Promise<void> {
+    if (_source === 'firebase') {
+      if (!_firebaseStore) throw new Error('Firebase store not initialized');
+      await _firebaseStore.waiters.unassignTable(waiterId, tableId);
+      return;
+    }
+    throw new Error('unassignTable only supported in Firebase mode');
+  },
 };

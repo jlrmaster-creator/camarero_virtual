@@ -37,6 +37,7 @@ export interface Waiter {
   activo: boolean;
   fecha_inicio: string | null;
   fecha_fin: string | null;
+  assigned_table_ids?: number[];
   email?: string;
   bloqueado?: boolean;
   eliminado?: boolean;

@@ -55,20 +55,32 @@ export function useTables(zone: Zone = 'interior') {
       store.getWaiters(),
     ]);
     const waiterMap = new Map<number, string>();
-    for (const w of waiters) waiterMap.set(w.id, w.nombre);
+    const tableAssignmentMap = new Map<number, number>();
+    for (const w of waiters) {
+      waiterMap.set(w.id, w.nombre);
+      if (w.assigned_table_ids) {
+        for (const tid of w.assigned_table_ids) {
+          tableAssignmentMap.set(tid, w.id);
+        }
+      }
+    }
     return rawTables.map(t => {
       const tid = String(t.id);
+      const tableNum = t.numero as number;
       const occupation = occMap.get(tid) ?? null;
-      const tableWaiterId = (t.waiter_id as number) ?? null;
+      const assignedWaiterId = tableAssignmentMap.get(tableNum) ?? null;
       const occWaiterId = occupation?.waiter_id;
-      const resolveWaiterId = occWaiterId ?? tableWaiterId;
-      const blocked = occupation !== null && currentWaiter !== null && occWaiterId !== null && occWaiterId !== undefined
-        && occWaiterId !== currentWaiter.id;
+      const resolveWaiterId = occWaiterId ?? assignedWaiterId;
+      const occupiedByOther = occupation !== null && occWaiterId !== null && occWaiterId !== undefined
+        && currentWaiter !== null && occWaiterId !== currentWaiter.id;
+      const assignedToOther = occupation === null && assignedWaiterId !== null
+        && currentWaiter !== null && assignedWaiterId !== currentWaiter.id;
+      const blocked = occupiedByOther || assignedToOther;
       return {
         ...t,
         status: (t.status as string) ?? 'free',
         occupation,
-        waiter_id: tableWaiterId,
+        waiter_id: resolveWaiterId,
         blocked_by_other: blocked,
         waiter_nombre: resolveWaiterId ? (waiterMap.get(resolveWaiterId) ?? null) : null,
       } as TableWithMeta;
@@ -118,6 +130,7 @@ export function useTables(zone: Zone = 'interior') {
             status: (d.data() as Record<string, unknown>)?.status ?? 'free',
             occupation: null,
             blocked_by_other: false,
+            waiter_id: null,
             waiter_nombre: null,
           } as Record<string, unknown>));
           setTables(docs as TableWithMeta[]);
