@@ -63,7 +63,7 @@ export function TableDetailPage() {
     const occ = table.occupation as Record<string, unknown> | null;
     if (occ) {
       await store.updateOccupation(occ.id as number, data);
-    } else if (data.cliente || data.nota) {
+    } else if (data.cliente || data.nota || data.waiter_id != null) {
       const wId = data.waiter_id !== undefined ? data.waiter_id : (currentWaiter?.id ?? null);
       const newOcc = await store.createOccupation({
         table_id: Number(id),
@@ -76,6 +76,16 @@ export function TableDetailPage() {
   }, [blocked, table, id, currentWaiter, waiterId]);
 
   useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales, nota, total, waiter_id: waiterId }, saveOccupation);
+
+  const handleSave = () => {
+    saveOccupation({
+      cliente,
+      comensales: comensales === '' ? 1 : comensales,
+      nota,
+      total,
+      waiter_id: waiterId,
+    });
+  };
 
   const handleFinish = async () => {
     const occ = table?.occupation as Record<string, unknown> | null;
@@ -119,9 +129,16 @@ export function TableDetailPage() {
         </div>
       )}
 
-      <div className="card">
-        <h2 className="text-2xl font-bold">{nombre || `Mesa ${numero}`}</h2>
-        <p className="text-sm text-slate-500">Estado: {statusLabel[status] ?? status}</p>
+      <div className="card flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">{nombre?.replace(/^Mesa\s*/, '') || String(numero)}</h2>
+          <p className="text-sm text-slate-500">Estado: {statusLabel[status] ?? status}</p>
+        </div>
+        {!blocked && (
+          <button onClick={handleSave} className="btn-primary text-sm">
+            Guardar
+          </button>
+        )}
       </div>
 
       <div className="card space-y-3">
