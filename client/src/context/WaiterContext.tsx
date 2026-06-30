@@ -35,7 +35,7 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      const allWaiters = await store.getWaiters(false);
+      const allWaiters = await store.getWaiters();
       const active = allWaiters.filter(w => w.activo);
       setActiveWaiters(active);
 
