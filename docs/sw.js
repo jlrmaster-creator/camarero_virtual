@@ -1,4 +1,4 @@
-const CACHE_NAME = 'camarero-__VERSION__';
+const CACHE_NAME = 'camarero-2.1.28';
 
 const STATIC_URLS = [
   './manifest.json',
