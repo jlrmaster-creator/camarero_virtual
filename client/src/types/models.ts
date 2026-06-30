@@ -32,10 +32,13 @@ export interface Occupation {
   total: number;
 }
 
+export type ProductCategory = 'bebida' | 'comida';
+
 export interface Product {
   id: number;
   nombre: string;
   precio: number;
+  categoria?: ProductCategory;
 }
 
 export interface Waiter {

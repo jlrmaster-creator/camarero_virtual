@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { store, getStoreSource } from '@/services/store';
-import type { Product } from '@/types/models';
+import type { Product, ProductCategory } from '@/types/models';
 
 const PencilIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -29,8 +29,10 @@ const CloseIcon = () => (
 
 export function ConfigPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [tab, setTab] = useState<ProductCategory>('bebida');
   const [newName, setNewName] = useState('');
   const [newPrice, setNewPrice] = useState('');
+  const [newCat, setNewCat] = useState<ProductCategory>('bebida');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editPrice, setEditPrice] = useState('');
@@ -44,9 +46,11 @@ export function ConfigPage() {
     fetchProducts();
   }, []);
 
+  const filtered = products.filter(p => (p.categoria ?? 'bebida') === tab);
+
   const addProduct = async () => {
     if (!newName || !newPrice) return;
-    await store.createProduct({ nombre: newName, precio: Number(newPrice) });
+    await store.createProduct({ nombre: newName, precio: Number(newPrice), categoria: newCat });
     setNewName('');
     setNewPrice('');
     await fetchProducts();
@@ -79,27 +83,67 @@ export function ConfigPage() {
       <h1 className="text-xl font-bold">Catálogo</h1>
 
       <div className="card space-y-3">
-        <h2 className="font-semibold">Catálogo de Productos</h2>
-        <div className="flex gap-2">
+        <h2 className="font-semibold">Productos</h2>
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+          <button
+            onClick={() => setTab('bebida')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'bebida'
+                ? 'bg-white dark:bg-slate-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Bebidas
+          </button>
+          <button
+            onClick={() => setTab('comida')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              tab === 'comida'
+                ? 'bg-white dark:bg-slate-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Comidas
+          </button>
+        </div>
+
+        {/* Add form */}
+        <div className="flex gap-2 flex-wrap">
           <input
-            className="input flex-1"
-            placeholder="Producto"
+            className="input flex-1 min-w-[120px]"
+            placeholder="Nombre"
             value={newName}
             onChange={e => setNewName(e.target.value)}
           />
           <input
             type="number"
             step="0.01"
-            className="input w-24"
+            className="input w-20"
             placeholder="Precio"
             value={newPrice}
             onChange={e => setNewPrice(e.target.value)}
           />
+          <select
+            className="input w-24 text-sm"
+            value={newCat}
+            onChange={e => setNewCat(e.target.value as ProductCategory)}
+          >
+            <option value="bebida">Bebida</option>
+            <option value="comida">Comida</option>
+          </select>
           <button onClick={addProduct} className="btn-primary">Añadir</button>
         </div>
 
+        {/* Product list */}
         <ul className="divide-y divide-slate-200 dark:divide-slate-700">
-          {products.map(product => (
+          {filtered.length === 0 && (
+            <li className="py-4 text-sm text-slate-500 text-center">
+              No hay productos en esta categoría
+            </li>
+          )}
+          {filtered.map(product => (
             <li key={product.id} className="flex justify-between items-center py-2 gap-2">
               {editingId === product.id ? (
                 <>
