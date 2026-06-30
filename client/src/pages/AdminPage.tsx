@@ -388,6 +388,34 @@ export function AdminPage() {
               })}
             </div>
           </section>
+
+          <section className="bg-slate-800 rounded-xl p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-red-400">Resetear mesas</h2>
+            <p className="text-sm text-slate-400">
+              Elimina todos los pedidos, clientes y comensales de todas las mesas. No afecta al catálogo de productos ni a los camareros.
+              Esta acción no se puede deshacer.
+            </p>
+            <button
+              onClick={async () => {
+                if (!window.confirm('¿Estás seguro de que quieres resetear TODAS las mesas? Se perderán todos los pedidos, clientes y comensales.')) return;
+                if (!window.confirm('Esta acción no se puede deshacer. ¿Continuar?')) return;
+                setBusy(true);
+                setMsg('');
+                try {
+                  await fsStore!.resetAllTables();
+                  setMsg('Todas las mesas se han reseteado correctamente.');
+                } catch (err: unknown) {
+                  setMsg(err instanceof Error ? err.message : 'Error al resetear mesas');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              disabled={busy}
+              className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              {busy ? 'Reseteando...' : 'Resetear mesas'}
+            </button>
+          </section>
         </>
       )}
 

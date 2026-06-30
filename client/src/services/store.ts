@@ -131,4 +131,8 @@ export const store = {
   async unassignTable(waiterId: number, tableId: number): Promise<void> {
     await getStore().waiters.unassignTable(waiterId, tableId);
   },
+
+  async resetAllTables(): Promise<void> {
+    await getStore().resetAllTables();
+  },
 };

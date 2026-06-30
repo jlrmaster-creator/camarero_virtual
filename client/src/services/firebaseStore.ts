@@ -247,6 +247,14 @@ export function createFirestoreStore(companyId: string) {
           fecha_actualizacion: new Date().toISOString(),
         }, { merge: true });
       },
+
+      async getAllActive(): Promise<Occupation[]> {
+        const database = getDb();
+        const ref = col(database, companyId, OCCUPATIONS_COL);
+        const q = query(ref, where('active', '==', true));
+        const snap = await getDocs(q);
+        return docsData<Occupation>(snap);
+      },
     },
 
     // ── Waiters ─────────────────────────────────────────────────────────
@@ -312,6 +320,44 @@ export function createFirestoreStore(companyId: string) {
         const ref = docRef(database, companyId, WAITERS_COL, String(waiterId));
         await setDoc(ref, { assigned_table_ids: arrayRemove(tableId) }, { merge: true });
       },
+    },
+
+    // ── Reset ───────────────────────────────────────────────────────────
+
+    async resetAllTables(): Promise<void> {
+      const database = getDb();
+
+      // 1. Deactivate all active occupations
+      const activeOccupations = await this.occupations.getAllActive();
+      await Promise.all(
+        activeOccupations.map(occ =>
+          setDoc(
+            docRef(database, companyId, OCCUPATIONS_COL, String(occ.id)),
+            {
+              active: false,
+              cliente: '',
+              comensales: 1,
+              items: [],
+              total: 0,
+              nota: '',
+              fecha_actualizacion: new Date().toISOString(),
+            },
+            { merge: true },
+          ),
+        ),
+      );
+
+      // 2. Reset all tables to free, remove ultimo_servicio
+      const allTables = await this.tables.getAll();
+      await Promise.all(
+        allTables.map(table =>
+          setDoc(
+            docRef(database, companyId, TABLES_COL, String(table.id)),
+            { status: 'free', ultimo_servicio: null },
+            { merge: true },
+          ),
+        ),
+      );
     },
   };
 }

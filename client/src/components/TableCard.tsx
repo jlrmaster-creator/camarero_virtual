@@ -53,8 +53,8 @@ export function TableCard({ table, disabled }: TableCardProps) {
       )}
 
       {table.status === 'paid' && (
-        <span className="absolute top-1 right-1 text-xs bg-white/20 rounded-full px-1.5 py-0.5">
-          ✓ Pagado
+        <span className="absolute top-1 right-1 text-blue-500 text-sm font-bold drop-shadow-md">
+          ✓
         </span>
       )}
 
