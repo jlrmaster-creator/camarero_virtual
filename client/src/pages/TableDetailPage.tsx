@@ -5,7 +5,7 @@ import { ProductAutocomplete } from '@/components/ProductAutocomplete';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
-import { generateTicket } from '@/utils/ticket';
+import { generateTicketHtml, printTicket } from '@/utils/ticket';
 import type { Zone, OrderItem, Product } from '@/types/models';
 
 let itemIdCounter = 0;
@@ -34,6 +34,8 @@ const [blockedByOther, setBlockedByOther] = useState(false);
 const [assignedWaiterName, setAssignedWaiterName] = useState('Sin asignar');
 const [newProductName, setNewProductName] = useState('');
 const [newProductPrice, setNewProductPrice] = useState('');
+const [showTicket, setShowTicket] = useState(false);
+const [ticketHtml, setTicketHtml] = useState('');
 
   const goBack = useCallback(() => navigate('/tables', { state: { zone: returnZone } }), [navigate, returnZone]);
 
@@ -180,7 +182,7 @@ const [newProductPrice, setNewProductPrice] = useState('');
     const nombre = (table?.nombre as string) ?? '';
     const tableName = nombre.replace(/^Mesa\s*/, '') || String(table?.numero ?? '');
     const itemsText = items.map(i => `${i.cantidad}x ${i.nombre} — ${(i.precio * i.cantidad).toFixed(2)}€`).join('\n');
-    generateTicket({
+    const html = generateTicketHtml({
       tableName,
       zone: returnZone === 'interior' ? 'Interior' : 'Terraza',
       waiterName: assignedWaiterName,
@@ -189,6 +191,12 @@ const [newProductPrice, setNewProductPrice] = useState('');
       nota: itemsText,
       total,
     });
+    setTicketHtml(html);
+    setShowTicket(true);
+  };
+
+  const handlePrintTicket = () => {
+    if (ticketHtml) printTicket(ticketHtml);
   };
 
   if (loading) {
@@ -365,6 +373,26 @@ const [newProductPrice, setNewProductPrice] = useState('');
           <button onClick={handleTicket} className="btn-primary flex-1" disabled={blocked}>
             Generar Ticket
           </button>
+        </div>
+      )}
+
+      {showTicket && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex flex-col">
+          <div className="flex-1 p-4 flex flex-col min-h-0">
+            <iframe
+              srcDoc={ticketHtml}
+              className="w-full flex-1 bg-white rounded-lg"
+              title="Ticket"
+            />
+          </div>
+          <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 flex gap-3 justify-center">
+            <button onClick={handlePrintTicket} className="btn-primary">
+              Imprimir / Guardar PDF
+            </button>
+            <button onClick={() => setShowTicket(false)} className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-6 py-2 rounded-lg font-medium">
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
     </div>

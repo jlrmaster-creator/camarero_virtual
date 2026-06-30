@@ -1,4 +1,4 @@
-export function generateTicket(params: {
+export function generateTicketHtml(params: {
   tableName: string;
   zone: string;
   waiterName: string;
@@ -6,7 +6,7 @@ export function generateTicket(params: {
   comensales: number;
   nota: string;
   total: number;
-}) {
+}): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -19,21 +19,23 @@ export function generateTicket(params: {
     `Total: ${params.total.toFixed(2)}€`
   );
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ticket</title>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"><title>Ticket</title>
 <style>
-  body { font-family: system-ui, -apple-system, sans-serif; font-size: 16px; max-width: 480px; margin: 0 auto; padding: 24px 16px; background: #fff; color: #222; }
-  h2 { text-align: center; font-size: 24px; margin: 0 0 8px; }
-  .header { text-align: center; font-size: 14px; color: #666; margin-bottom: 16px; }
-  hr { border: none; border-top: 1px dashed #999; margin: 12px 0; }
-  .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 16px; }
-  .items { font-size: 15px; line-height: 1.6; padding: 4px 0; }
-  .total { font-size: 28px; font-weight: bold; text-align: center; margin: 16px 0; }
-  .qr { text-align: center; margin-top: 24px; }
-  .qr img { width: 180px; height: 180px; }
-  .qr-label { font-size: 12px; color: #999; margin-top: 4px; }
-  .footer { text-align: center; font-size: 14px; margin-top: 16px; color: #888; }
+  body { font-family: system-ui, -apple-system, sans-serif; font-size: 18px; max-width: 500px; margin: 0 auto; padding: 24px 16px; background: #fff; color: #222; touch-action: pan-y pinch-zoom; }
+  h2 { text-align: center; font-size: 28px; margin: 0 0 8px; }
+  .header { text-align: center; font-size: 15px; color: #666; margin-bottom: 16px; }
+  hr { border: none; border-top: 1px dashed #999; margin: 16px 0; }
+  .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 18px; }
+  .items { font-size: 17px; line-height: 1.7; padding: 6px 0; }
+  .total { font-size: 32px; font-weight: bold; text-align: center; margin: 20px 0; }
+  .qr { text-align: center; margin-top: 28px; }
+  .qr img { width: 260px; height: 260px; }
+  .qr-label { font-size: 14px; color: #999; margin-top: 6px; }
+  .footer { text-align: center; font-size: 15px; margin-top: 20px; color: #888; }
+  .actions { display: flex; gap: 12px; justify-content: center; margin-top: 28px; }
+  .actions button { padding: 12px 24px; font-size: 16px; border-radius: 8px; border: none; cursor: pointer; }
 </style></head>
 <body>
   <h2>Camarero Virtual</h2>
@@ -50,12 +52,14 @@ export function generateTicket(params: {
   <div class="total">${params.total.toFixed(2)}€</div>
   <hr>
   <div class="qr">
-    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}" alt="QR Ticket" crossorigin="anonymous">
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${qrData}" alt="QR Ticket" crossorigin="anonymous">
     <div class="qr-label">Escanea para guardar el ticket</div>
   </div>
   <div class="footer">Gracias por su visita</div>
 </body></html>`;
+}
 
+export function printTicket(html: string): void {
   const win = window.open('', '_blank');
   if (win) {
     win.document.write(html);
