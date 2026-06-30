@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { store } from '@/services/store';
 import { ProductAutocomplete } from '@/components/ProductAutocomplete';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
+import { generateTicket } from '@/utils/ticket';
+import type { Zone } from '@/types/models';
 
 export function TableDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnZone: Zone = (location.state as { zone?: Zone })?.zone ?? 'interior';
   const { currentWaiter } = useWaiter();
   const { role } = useAuth();
   const noShift = role === 'waiter' && !currentWaiter;
@@ -23,6 +27,8 @@ export function TableDetailPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [blockedByOther, setBlockedByOther] = useState(false);
   const [assignedWaiterName, setAssignedWaiterName] = useState('Sin asignar');
+
+  const goBack = () => navigate('/tables', { state: { zone: returnZone } });
 
   const fetchTable = useCallback(async () => {
     if (!id) return;
@@ -42,7 +48,6 @@ export function TableDetailPage() {
         setTotal(0);
       }
 
-      // Resolve waiter from assignments and check blocking
       const allWaiters = await store.getWaiters();
       const tableDocId = parseInt(id, 10);
       let effectiveWaiterId: number | null = null;
@@ -67,11 +72,11 @@ export function TableDetailPage() {
       );
     } catch (e) {
       console.error('[TableDetailPage] fetch table failed:', e);
-      navigate('/tables');
+      goBack();
     } finally {
       setLoading(false);
     }
-  }, [id, navigate, role, currentWaiter]);
+  }, [id, role, currentWaiter, returnZone]);
 
   useEffect(() => {
     fetchTable();
@@ -108,6 +113,7 @@ export function TableDetailPage() {
         nota,
         total,
       });
+      setErrorMsg('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al guardar. Comprueba tu conexión.';
       setErrorMsg(msg);
@@ -122,12 +128,26 @@ export function TableDetailPage() {
     if (!window.confirm('¿Finalizar servicio de esta mesa?')) return;
     try {
       await store.finishOccupation(occ.id as number, Number(id));
-      navigate('/tables');
+      goBack();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error al finalizar servicio';
       setErrorMsg(msg);
       console.error('[TableDetailPage] finish failed:', e);
     }
+  };
+
+  const handleTicket = () => {
+    const nombre = (table?.nombre as string) ?? '';
+    const tableName = nombre.replace(/^Mesa\s*/, '') || String(table?.numero ?? '');
+    generateTicket({
+      tableName,
+      zone: returnZone === 'interior' ? 'Interior' : 'Terraza',
+      waiterName: assignedWaiterName,
+      cliente,
+      comensales: comensales === '' ? 1 : comensales,
+      nota,
+      total,
+    });
   };
 
   if (loading) {
@@ -152,7 +172,7 @@ export function TableDetailPage() {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate('/tables')} className="text-blue-600 text-sm">
+      <button onClick={goBack} className="text-blue-600 text-sm">
         ← Volver
       </button>
 
@@ -174,16 +194,9 @@ export function TableDetailPage() {
         </div>
       )}
 
-      <div className="card flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">{nombre?.replace(/^Mesa\s*/, '') || String(numero)}</h2>
-          <p className="text-sm text-slate-500">Estado: {statusLabel[status] ?? status}</p>
-        </div>
-        {!blocked && (
-          <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
-            {saving ? 'Guardando...' : 'Guardar'}
-          </button>
-        )}
+      <div className="card">
+        <h2 className="text-2xl font-bold">{nombre?.replace(/^Mesa\s*/, '') || String(numero)}</h2>
+        <p className="text-sm text-slate-500">Estado: {statusLabel[status] ?? status}</p>
       </div>
 
       <div className="card space-y-3">
@@ -245,12 +258,22 @@ export function TableDetailPage() {
             </button>
           ))}
         </div>
+        {!blocked && (
+          <button onClick={handleSave} disabled={saving} className="btn-primary w-full mt-2">
+            {saving ? 'Guardando...' : 'Guardar Pedido'}
+          </button>
+        )}
       </div>
 
       {status !== 'free' && status !== 'paid' && (
-        <button onClick={handleFinish} className={`btn-danger w-full ${blocked ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={blocked}>
-          Finalizar Servicio
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleFinish} className={`btn-danger flex-1 ${blocked ? 'opacity-50 cursor-not-allowed' : ''}`} disabled={blocked}>
+            Finalizar Servicio
+          </button>
+          <button onClick={handleTicket} className="btn-primary flex-1" disabled={blocked}>
+            Generar Ticket
+          </button>
+        </div>
       )}
     </div>
   );

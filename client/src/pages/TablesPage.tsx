@@ -1,11 +1,14 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ZoneTabs } from '@/components/ZoneTabs';
 import { TableGrid } from '@/components/TableGrid';
 import { useTables } from '@/hooks/useTables';
 import type { Zone } from '@/types/models';
 
 export function TablesPage() {
-  const [zone, setZone] = useState<Zone>('interior');
+  const location = useLocation();
+  const initialZone: Zone = (location.state as { zone?: Zone })?.zone ?? 'interior';
+  const [zone, setZone] = useState<Zone>(initialZone);
   const { tables, loading, error } = useTables(zone);
 
   return (

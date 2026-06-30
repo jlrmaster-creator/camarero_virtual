@@ -36,7 +36,7 @@ export function TableCard({ table, disabled }: TableCardProps) {
 
   return (
     <button
-      onClick={disabled ? undefined : () => navigate(`/tables/${table.id}`)}
+      onClick={disabled ? undefined : () => navigate(`/tables/${table.id}`, { state: { zone: table.zone } })}
       className={`
         relative flex flex-col items-center justify-center p-3 rounded-xl
         text-white font-bold shadow-md transition-transform
