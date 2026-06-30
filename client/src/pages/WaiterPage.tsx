@@ -26,7 +26,7 @@ function parseTableInput(input: string): number[] {
 
 export function WaiterPage() {
   const { currentWaiter, setCurrentWaiter, activeWaiters, refresh } = useWaiter();
-  const { user, company, role, roleReady } = useAuth();
+  const { user, role, roleReady } = useAuth();
   const [newName, setNewName] = useState('');
   const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
   const [showAll, setShowAll] = useState(false);
@@ -38,14 +38,6 @@ export function WaiterPage() {
 
   const [intInput, setIntInput] = useState<Record<number, string>>({});
   const [extInput, setExtInput] = useState<Record<number, string>>({});
-
-  if (roleReady && !isAdmin) {
-    return (
-      <div className="text-center py-8 text-slate-500">
-        No tienes permisos para gestionar camareros.
-      </div>
-    );
-  }
 
   const fetchAll = async () => {
     const data = await store.getWaiters();
@@ -72,6 +64,14 @@ export function WaiterPage() {
       setTerrazaTables(terraza);
     }).catch(() => {});
   }, []);
+
+  if (roleReady && !isAdmin) {
+    return (
+      <div className="text-center py-8 text-slate-500">
+        No tienes permisos para gestionar camareros.
+      </div>
+    );
+  }
 
   const addWaiter = async () => {
     if (!newName.trim()) return;

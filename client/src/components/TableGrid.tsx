@@ -14,6 +14,10 @@ export function TableGrid({ tables, loading, error }: TableGridProps) {
   const { currentWaiter } = useWaiter();
   const waiterInactive = role === 'waiter' && !currentWaiter;
 
+  const visibleTables = (role === 'waiter' && currentWaiter)
+    ? tables.filter(t => t.waiter_id === currentWaiter.id)
+    : tables;
+
   if (loading) {
     return (
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -47,8 +51,15 @@ export function TableGrid({ tables, loading, error }: TableGridProps) {
           No tienes un turno activo. Pide a un administrador que active tu turno para poder gestionar mesas.
         </div>
       )}
+      {visibleTables.length === 0 && !loading && (
+        <div className="text-center py-8 text-slate-500">
+          {role === 'waiter' && currentWaiter
+            ? 'No tienes mesas asignadas en esta zona.'
+            : 'No hay mesas disponibles en esta zona.'}
+        </div>
+      )}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-        {tables.map(table => (
+        {visibleTables.map(table => (
           <TableCard key={table.id} table={table} disabled={waiterInactive} />
         ))}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { store, getStoreSource } from '@/services/store';
+import { store } from '@/services/store';
 import type { Product, ProductCategory } from '@/types/models';
 
 const PencilIcon = () => (

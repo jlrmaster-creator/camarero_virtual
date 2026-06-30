@@ -26,6 +26,7 @@ export interface ProductRow {
   id: number;
   nombre: string;
   precio: number;
+  categoria?: string;
 }
 
 export interface WaiterRow {

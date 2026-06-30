@@ -4,6 +4,7 @@ import type { ProductRow } from '@/types/models';
 export interface CreateProductParams {
   nombre: string;
   precio: number;
+  categoria?: string;
 }
 
 export const productModel = {
@@ -27,8 +28,8 @@ export const productModel = {
   create(params: CreateProductParams): ProductRow {
     const db = getDb();
     const result = db.prepare(
-      'INSERT INTO products (nombre, precio) VALUES (?, ?)',
-    ).run(params.nombre, params.precio);
+      'INSERT INTO products (nombre, precio, categoria) VALUES (?, ?, ?)',
+    ).run(params.nombre, params.precio, params.categoria ?? null);
     return this.findById(result.lastInsertRowid as number)!;
   },
 
@@ -44,6 +45,10 @@ export const productModel = {
     if (params.precio !== undefined) {
       sets.push('precio = ?');
       values.push(params.precio);
+    }
+    if (params.categoria !== undefined) {
+      sets.push('categoria = ?');
+      values.push(params.categoria);
     }
 
     if (sets.length === 0) return this.findById(id);

@@ -1,4 +1,4 @@
-import type { Table, Occupation, Product, Waiter, TableStatus, Zone } from '@/types/models';
+import type { Table, Occupation, Product, Waiter, TableStatus, Zone, ProductCategory } from '@/types/models';
 
 const TABLES_KEY = 'local_tables';
 const PRODUCTS_KEY = 'local_products';
@@ -22,7 +22,6 @@ function generateId(): number {
   return Date.now() + Math.floor(Math.random() * 1000);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function strip<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -144,7 +143,7 @@ export const localProducts = {
     return products;
   },
 
-  create(data: { nombre: string; precio: number }): Product {
+  create(data: { nombre: string; precio: number; categoria?: ProductCategory }): Product {
     const products = this.getAll();
     const product: Product = { id: generateId(), ...data };
     products.push(product);

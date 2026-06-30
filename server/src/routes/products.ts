@@ -15,8 +15,8 @@ productsRouter.get('/', (req, res, next) => {
 
 productsRouter.post('/', (req, res, next) => {
   try {
-    const { nombre, precio } = req.body;
-    const product = productModel.create({ nombre, precio });
+    const { nombre, precio, categoria } = req.body;
+    const product = productModel.create({ nombre, precio, categoria });
     res.status(201).json({ data: product });
   } catch (err) {
     next(err);
@@ -26,8 +26,8 @@ productsRouter.post('/', (req, res, next) => {
 productsRouter.put('/:id', (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const { nombre, precio } = req.body;
-    const product = productModel.update(id, { nombre, precio });
+    const { nombre, precio, categoria } = req.body;
+    const product = productModel.update(id, { nombre, precio, categoria });
     if (!product) {
       res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Product not found' } });
       return;

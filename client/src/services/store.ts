@@ -1,4 +1,4 @@
-import type { Table, Occupation, Product, Waiter, Zone } from '@/types/models';
+import type { Table, Occupation, Product, Waiter, Zone, ProductCategory } from '@/types/models';
 import { createFirestoreStore, type FirestoreStore } from './firebaseStore';
 import * as local from './localStore';
 import { api } from './api';
@@ -141,7 +141,7 @@ export const store = {
     return local.localProducts.getAll(q);
   },
 
-  async createProduct(data: { nombre: string; precio: number }): Promise<Product> {
+  async createProduct(data: { nombre: string; precio: number; categoria?: ProductCategory }): Promise<Product> {
     if (_source === 'firebase') {
       if (!_firebaseStore) throw new Error('Firebase store not initialized');
       return _firebaseStore.products.create(data);
@@ -150,7 +150,7 @@ export const store = {
     return local.localProducts.create(data);
   },
 
-  async updateProduct(id: number, data: { nombre?: string; precio?: number }): Promise<Product> {
+  async updateProduct(id: number, data: { nombre?: string; precio?: number; categoria?: ProductCategory }): Promise<Product> {
     if (_source === 'firebase') {
       if (!_firebaseStore) throw new Error('Firebase store not initialized');
       const p = await _firebaseStore.products.update(id, data);

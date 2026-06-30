@@ -3,9 +3,7 @@ import {
   collection,
   query,
   onSnapshot,
-  type Firestore,
   type QueryConstraint,
-  type DocumentData,
 } from 'firebase/firestore';
 import { getDb } from '@/firebase/init';
 
@@ -36,6 +34,7 @@ export function useRealtimeCollection<T>(
     );
 
     return () => unsub();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 
   return { data, loading, error };

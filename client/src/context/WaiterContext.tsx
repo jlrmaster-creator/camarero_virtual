@@ -54,6 +54,7 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, company?.id]);
 
   return (
@@ -63,6 +64,7 @@ export function WaiterProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWaiter() {
   const ctx = useContext(WaiterContext);
   if (!ctx) throw new Error('useWaiter must be used within WaiterProvider');

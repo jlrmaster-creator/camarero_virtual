@@ -70,6 +70,7 @@ export function runMigrations(): void {
   addColumn('waiters', 'session_id', 'INTEGER REFERENCES sessions(id) ON DELETE CASCADE');
   addColumn('occupations', 'session_id', 'INTEGER REFERENCES sessions(id) ON DELETE CASCADE');
   addColumn('billing_history', 'session_id', 'INTEGER REFERENCES sessions(id) ON DELETE CASCADE');
+  addColumn('products', 'categoria', 'TEXT');
 
   console.log('Migrations completed successfully.');
 }

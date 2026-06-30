@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import { errorHandler } from '@/middleware/errorHandler';
 import { sessionMiddleware } from '@/middleware/session';
@@ -37,7 +38,7 @@ export function createApp() {
   app.get('*', (_req, res) => {
     for (const p of staticPaths) {
       const indexPath = path.join(p, 'index.html');
-      if (require('fs').existsSync(indexPath)) {
+      if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
         return;
       }

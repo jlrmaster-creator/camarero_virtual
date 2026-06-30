@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { onSnapshot, collection, query, where, orderBy, getDocs, type DocumentData } from 'firebase/firestore';
+import { onSnapshot, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { store, getStoreSource } from '@/services/store';
 import { getDb } from '@/firebase/init';
 import { useAuth } from '@/context/AuthContext';
@@ -150,6 +150,7 @@ export function useTables(zone: Zone = 'interior') {
         unsubRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFirebase, company?.id, zone, fetchTables, enrichWithOccupations]);
 
   useEffect(() => {

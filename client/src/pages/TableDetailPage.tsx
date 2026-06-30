@@ -33,7 +33,7 @@ export function TableDetailPage() {
   const [blockedByOther, setBlockedByOther] = useState(false);
   const [assignedWaiterName, setAssignedWaiterName] = useState('Sin asignar');
 
-  const goBack = () => navigate('/tables', { state: { zone: returnZone } });
+  const goBack = useCallback(() => navigate('/tables', { state: { zone: returnZone } }), [navigate, returnZone]);
 
   const fetchTable = useCallback(async () => {
     if (!id) return;
@@ -79,7 +79,7 @@ export function TableDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, role, currentWaiter, returnZone]);
+  }, [id, role, currentWaiter, goBack]);
 
   useEffect(() => {
     fetchTable();

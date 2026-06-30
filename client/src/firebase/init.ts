@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
+import { getAuth, type Auth } from 'firebase/auth';
 import { firebaseConfig, isFirebaseConfigured } from './config';
 
 let app: FirebaseApp | null = null;

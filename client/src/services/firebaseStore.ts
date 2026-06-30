@@ -9,12 +9,9 @@ import {
   where,
   orderBy,
   limit,
-  serverTimestamp,
   arrayUnion,
   arrayRemove,
   type Firestore,
-  type DocumentSnapshot,
-  type DocumentData,
 } from 'firebase/firestore';
 import { getDb } from '@/firebase/init';
 import type { Table, Occupation, Product, Waiter, Zone, TableStatus, ProductCategory } from '@/types/models';
@@ -180,14 +177,14 @@ export function createFirestoreStore(companyId: string) {
         return products;
       },
 
-      async create(data: { nombre: string; precio: number }): Promise<Product> {
+      async create(data: { nombre: string; precio: number; categoria?: ProductCategory }): Promise<Product> {
         const database = getDb();
         const ref = doc(col(database, companyId, PRODUCTS_COL));
         await setDoc(ref, data);
         return { id: parseInt(ref.id, 36), ...data };
       },
 
-      async update(id: number, data: { nombre?: string; precio?: number }): Promise<Product | undefined> {
+      async update(id: number, data: { nombre?: string; precio?: number; categoria?: ProductCategory }): Promise<Product | undefined> {
         const database = getDb();
         const ref = docRef(database, companyId, PRODUCTS_COL, String(id));
         await setDoc(ref, data, { merge: true });
@@ -242,7 +239,15 @@ export function createFirestoreStore(companyId: string) {
       async finish(id: number): Promise<void> {
         const database = getDb();
         const ref = docRef(database, companyId, OCCUPATIONS_COL, String(id));
-        await setDoc(ref, { active: false, fecha_actualizacion: new Date().toISOString() }, { merge: true });
+        await setDoc(ref, {
+          active: false,
+          cliente: '',
+          comensales: 1,
+          items: [],
+          total: 0,
+          nota: '',
+          fecha_actualizacion: new Date().toISOString(),
+        }, { merge: true });
       },
     },
 

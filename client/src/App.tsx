@@ -21,8 +21,8 @@ function LoadingScreen({ label }: { label: string }) {
 }
 
 function AppRoutes() {
-  const { checked, label, source } = useDataSource();
-  const { user, company, loading: authLoading } = useAuth();
+  const { checked, source } = useDataSource();
+  const { user, loading: authLoading } = useAuth();
 
   if (!checked) {
     return <LoadingScreen label="Detectando modo de conexión..." />;
