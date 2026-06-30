@@ -4,7 +4,7 @@ import { store, getStoreSource } from '@/services/store';
 import { getDb } from '@/firebase/init';
 import { useAuth } from '@/context/AuthContext';
 import { useWaiter } from '@/context/WaiterContext';
-import type { Zone, Occupation } from '@/types/models';
+import type { Zone, Occupation, Waiter } from '@/types/models';
 
 interface TableWithMeta {
   id: string;
@@ -14,6 +14,7 @@ interface TableWithMeta {
   status: string;
   occupation: Occupation | null;
   blocked_by_other: boolean;
+  waiter_nombre: string | null;
   [key: string]: unknown;
 }
 
@@ -43,7 +44,12 @@ export function useTables(zone: Zone = 'interior') {
 
   const enrichWithOccupations = useCallback(async (rawTables: Record<string, unknown>[]) => {
     if (!company) return rawTables as TableWithMeta[];
-    const occMap = await fetchActiveOccupations(company.id);
+    const [occMap, waiters] = await Promise.all([
+      fetchActiveOccupations(company.id),
+      store.getWaiters(),
+    ]);
+    const waiterMap = new Map<number, string>();
+    for (const w of waiters) waiterMap.set(w.id, w.nombre);
     return rawTables.map(t => {
       const tid = String(t.id);
       const occupation = occMap.get(tid) ?? null;
@@ -55,6 +61,7 @@ export function useTables(zone: Zone = 'interior') {
         status: (t.status as string) ?? 'free',
         occupation,
         blocked_by_other: blocked,
+        waiter_nombre: waiterId ? (waiterMap.get(waiterId) ?? null) : null,
       } as TableWithMeta;
     });
   }, [company, currentWaiter]);
@@ -102,6 +109,7 @@ export function useTables(zone: Zone = 'interior') {
             status: (d.data() as Record<string, unknown>)?.status ?? 'free',
             occupation: null,
             blocked_by_other: false,
+            waiter_nombre: null,
           } as Record<string, unknown>));
           setTables(docs as TableWithMeta[]);
         } finally {

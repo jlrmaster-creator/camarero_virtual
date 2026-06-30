@@ -35,11 +35,13 @@ export function TableCard({ table, disabled }: TableCardProps) {
         ${disabled ? 'opacity-75 cursor-not-allowed' : 'active:scale-95 cursor-pointer'}
       `}
     >
-      <span className="text-lg leading-tight">{table.nombre || `Mesa ${table.numero}`}</span>
+      <span className="text-lg leading-tight">{table.nombre?.replace(/^Mesa\s*/, '') || String(table.numero)}</span>
       {table.occupation && (
-        <span className="text-xs mt-1 opacity-90">
-          {table.occupation.comensales} com.s
-          {table.occupation.waiter_id && <span className="ml-1">· M{String(table.occupation.waiter_id).slice(0, 4)}</span>}
+        <span className="text-xs mt-1 opacity-90 flex flex-col items-center">
+          <span>{table.occupation.comensales} com.s · {table.waiter_nombre || '?'}</span>
+          {table.occupation.total > 0 && (
+            <span className="font-semibold">{table.occupation.total.toFixed(2)}€</span>
+          )}
         </span>
       )}
       {table.blocked_by_other && (
