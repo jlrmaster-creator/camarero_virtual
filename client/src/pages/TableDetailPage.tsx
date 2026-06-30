@@ -23,6 +23,8 @@ export function TableDetailPage() {
   const [total, setTotal] = useState(0);
   const [waiterId, setWaiterId] = useState<number | null>(null);
   const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     store.getWaiters().then(setAllWaiters).catch(() => {});
@@ -59,6 +61,7 @@ export function TableDetailPage() {
 
   const assignWaiter = async (wid: number | null) => {
     if (!id || blocked) return;
+    setErrorMsg('');
     await store.updateTable(Number(id), { waiter_id: wid ?? null });
     setWaiterId(wid);
     setTable(prev => prev ? { ...prev, waiter_id: wid } : prev);
@@ -81,13 +84,24 @@ export function TableDetailPage() {
 
   useAutoSave({ cliente, comensales: comensales === '' ? 1 : comensales, nota, total }, saveOccupation);
 
-  const handleSave = () => {
-    saveOccupation({
-      cliente,
-      comensales: comensales === '' ? 1 : comensales,
-      nota,
-      total,
-    });
+  const handleSave = async () => {
+    if (blocked || !id) return;
+    setSaving(true);
+    setErrorMsg('');
+    try {
+      await assignWaiter(waiterId);
+      await saveOccupation({
+        cliente,
+        comensales: comensales === '' ? 1 : comensales,
+        nota,
+        total,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar';
+      setErrorMsg(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleFinish = async () => {
@@ -132,14 +146,20 @@ export function TableDetailPage() {
         </div>
       )}
 
+      {errorMsg && (
+        <div className="bg-red-900/50 text-red-200 px-4 py-2 rounded-lg text-sm text-center">
+          {errorMsg}
+        </div>
+      )}
+
       <div className="card flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">{nombre?.replace(/^Mesa\s*/, '') || String(numero)}</h2>
           <p className="text-sm text-slate-500">Estado: {statusLabel[status] ?? status}</p>
         </div>
         {!blocked && (
-          <button onClick={handleSave} className="btn-primary text-sm">
-            Guardar
+          <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
+            {saving ? 'Guardando...' : 'Guardar'}
           </button>
         )}
       </div>
@@ -151,7 +171,13 @@ export function TableDetailPage() {
             <select
               className="input py-1 px-2 text-sm w-48"
               value={waiterId || ''}
-              onChange={e => assignWaiter(e.target.value ? Number(e.target.value) : null)}
+              onChange={e => {
+                const wid = e.target.value ? Number(e.target.value) : null;
+                assignWaiter(wid).catch(err => {
+                  setErrorMsg(err instanceof Error ? err.message : 'Error al asignar camarero');
+                  console.error(err);
+                });
+              }}
               disabled={blocked}
             >
               <option value="">Sin asignar</option>
