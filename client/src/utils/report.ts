@@ -194,19 +194,11 @@ export function generateReportHtml(params: {
 }
 
 export function printReport(html: string): void {
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.top = '0';
-  iframe.style.left = '0';
-  iframe.style.width = '100%';
-  iframe.style.height = '100%';
-  iframe.style.border = 'none';
-  iframe.style.zIndex = '9999';
-  iframe.srcdoc = html;
-  document.body.appendChild(iframe);
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-    }, 500);
-  };
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 500);
+  }
 }
