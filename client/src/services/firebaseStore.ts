@@ -247,12 +247,6 @@ export function createFirestoreStore(companyId: string) {
         const ref = docRef(database, companyId, OCCUPATIONS_COL, String(id));
         await setDoc(ref, {
           active: false,
-          cliente: '',
-          comensales: 1,
-          items: [],
-          grupos: [],
-          total: 0,
-          nota: '',
           fecha_actualizacion: new Date().toISOString(),
         }, { merge: true });
       },
@@ -261,6 +255,14 @@ export function createFirestoreStore(companyId: string) {
         const database = getDb();
         const ref = col(database, companyId, OCCUPATIONS_COL);
         const q = query(ref, where('active', '==', true));
+        const snap = await getDocs(q);
+        return docsData<Occupation>(snap);
+      },
+
+      async getAllFinished(): Promise<Occupation[]> {
+        const database = getDb();
+        const ref = col(database, companyId, OCCUPATIONS_COL);
+        const q = query(ref, where('active', '==', false));
         const snap = await getDocs(q);
         return docsData<Occupation>(snap);
       },

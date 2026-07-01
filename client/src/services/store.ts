@@ -135,4 +135,8 @@ export const store = {
   async resetAllTables(): Promise<void> {
     await getStore().resetAllTables();
   },
+
+  async getFinishedOccupations(): Promise<Occupation[]> {
+    return getStore().occupations.getAllFinished();
+  },
 };

@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { createFirestoreStore, type FirestoreStore } from '@/services/firebaseStore';
 import * as authService from '@/firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
+import { generateReportHtml, printReport } from '@/utils/report';
 import type { Waiter, CompanyUser } from '@/types/models';
 
 interface EditingWaiter {
@@ -203,6 +204,38 @@ export function AdminPage() {
   const isAdmin = role === 'admin';
 
   const activeUsers = companyUsers.filter(u => !u.eliminado && u.role === 'waiter');
+
+  async function handleDailyReport() {
+    if (!fsStore || !company) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const [occupations, tables, waiters] = await Promise.all([
+        fsStore.occupations.getAllFinished(),
+        fsStore.tables.getAll(),
+        fsStore.waiters.getAll(),
+      ]);
+      const tableNames: Record<number, string> = {};
+      for (const t of tables) {
+        tableNames[t.id] = t.nombre;
+      }
+      const waiterNames: Record<number | string, string> = {};
+      for (const w of waiters) {
+        waiterNames[w.id] = w.nombre;
+      }
+      const html = generateReportHtml({
+        companyName: company.name,
+        occupations,
+        waiterNames,
+        tableNames,
+      });
+      printReport(html);
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al generar el informe');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-8">
@@ -414,6 +447,20 @@ export function AdminPage() {
               className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors"
             >
               {busy ? 'Reseteando...' : 'Resetear mesas'}
+            </button>
+          </section>
+
+          <section className="bg-slate-800 rounded-xl p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-white">Informe del día</h2>
+            <p className="text-sm text-slate-400">
+              Genera un PDF con el resumen de facturación del día, incluyendo el desglose de productos vendidos para control de stock.
+            </p>
+            <button
+              onClick={handleDailyReport}
+              disabled={busy}
+              className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              {busy ? 'Generando...' : 'Generar informe del día'}
             </button>
           </section>
         </>
