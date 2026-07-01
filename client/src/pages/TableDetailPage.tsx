@@ -35,6 +35,7 @@ export function TableDetailPage() {
   const [table, setTable] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [grupos, setGrupos] = useState<GrupoPedido[]>([]);
+const [hasSentOrder, setHasSentOrder] = useState(false);
 const [saving, setSaving] = useState(false);
 const [savedMsg, setSavedMsg] = useState('');
 const [errorMsg, setErrorMsg] = useState('');
@@ -90,6 +91,9 @@ const ticketIframeRef = useRef<HTMLIFrameElement>(null);
       setBlockedByOther(
         role === 'waiter' && currentWaiter !== null && effectiveWaiterId !== null && effectiveWaiterId !== currentWaiter.id
       );
+
+      const existingOrders = await store.getOrdersByTable(tableDocId);
+      setHasSentOrder(existingOrders.some(o => o.status !== 'paid'));
     } catch (e) {
       console.error('[TableDetailPage] fetch table failed:', e);
       goBack();
@@ -488,8 +492,12 @@ const ticketIframeRef = useRef<HTMLIFrameElement>(null);
               </button>
             )}
             {!blocked && grupos.some(g => g.items.length > 0) && (
-              <button onClick={handleSendOrder} className="btn-primary w-full bg-amber-600 hover:bg-amber-700">
-                Enviar
+              <button
+                onClick={handleSendOrder}
+                disabled={hasSentOrder}
+                className={`btn-primary w-full ${hasSentOrder ? 'bg-slate-500 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700'}`}
+              >
+                {hasSentOrder ? 'Enviado' : 'Enviar'}
               </button>
             )}
           </div>

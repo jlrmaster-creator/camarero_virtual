@@ -86,6 +86,10 @@ export const store = {
     return getStore().orders.getAll(status as OrderRequest['status'] | undefined);
   },
 
+  async getOrdersByTable(tableId: number): Promise<OrderRequest[]> {
+    return getStore().orders.getByTable(tableId);
+  },
+
   async completeOrder(id: string): Promise<void> {
     await getStore().orders.markCompleted(id);
   },

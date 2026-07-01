@@ -32,17 +32,25 @@ function AppRoutes() {
   }
 
   const isReceptor = role === 'receptor';
+  const isAdmin = role === 'admin';
 
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to={isReceptor ? '/orders' : '/tables'} replace />} />
-        <Route path="/tables" element={<TablesPage />} />
-        <Route path="/tables/:id" element={<TableDetailPage />} />
-        <Route path="/config" element={<ConfigPage />} />
-        <Route path="/waiter" element={<WaiterPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/orders" element={<OrdersPage />} />
+        {isReceptor ? (
+          <Route path="/orders" element={<OrdersPage />} />
+        ) : (
+          <>
+            <Route path="/tables" element={<TablesPage />} />
+            <Route path="/tables/:id" element={<TableDetailPage />} />
+            <Route path="/config" element={<ConfigPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            {isAdmin && <Route path="/waiter" element={<WaiterPage />} />}
+            {isAdmin && <Route path="/admin" element={<AdminPage />} />}
+          </>
+        )}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
