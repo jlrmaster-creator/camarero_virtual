@@ -353,10 +353,10 @@ export function createFirestoreStore(companyId: string) {
         const database = getDb();
         const ref = col(database, companyId, ORDERS_COL);
         if (status) {
-          const q = query(ref, where('status', '==', status), orderBy('sent_at', 'desc'));
+          const q = query(ref, where('status', '==', status), orderBy('sent_at', 'asc'));
           return docsData<OrderRequest>(await getDocs(q));
         }
-        return docsData<OrderRequest>(await getDocs(query(ref, orderBy('sent_at', 'desc'))));
+        return docsData<OrderRequest>(await getDocs(query(ref, orderBy('sent_at', 'asc'))));
       },
 
       async getByTable(tableId: number): Promise<OrderRequest[]> {
