@@ -62,7 +62,7 @@ service cloud.firestore {
         // Any authenticated user can read any user doc (needed for company lookup)
         allow read: if isAuthenticated();
         allow create: if isAuthenticated()
-          && request.resource.data.role in ['admin', 'waiter']
+          && request.resource.data.role in ['admin', 'waiter', 'receptor']
           && request.resource.data.email is string;
         allow update: if isAdmin(companyId)
           || request.auth.uid == userId;
@@ -94,6 +94,14 @@ service cloud.firestore {
       match /occupations/{occupationId} {
         allow read: if isMember(companyId);
         allow write: if isMember(companyId);
+      }
+
+      // ── Orders (envío a cocina/receptor) ──────────────────────────────
+      match /orders/{orderId} {
+        allow read: if isMember(companyId);
+        allow create: if isMember(companyId);
+        allow update: if isMember(companyId);
+        allow delete: if false;
       }
 
       // ── Reports (cierre de caja) ──────────────────────────────────────
