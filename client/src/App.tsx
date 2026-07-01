@@ -9,6 +9,7 @@ import { ConfigPage } from '@/pages/ConfigPage';
 import { WaiterPage } from '@/pages/WaiterPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { AdminPage } from '@/pages/AdminPage';
+import { OrdersPage } from '@/pages/OrdersPage';
 
 function LoadingScreen({ label }: { label: string }) {
   return (
@@ -20,7 +21,7 @@ function LoadingScreen({ label }: { label: string }) {
 }
 
 function AppRoutes() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
 
   if (authLoading) {
     return <LoadingScreen label="Verificando sesión..." />;
@@ -30,15 +31,18 @@ function AppRoutes() {
     return <LoginPage />;
   }
 
+  const isReceptor = role === 'receptor';
+
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/tables" replace />} />
+        <Route path="/" element={<Navigate to={isReceptor ? '/orders' : '/tables'} replace />} />
         <Route path="/tables" element={<TablesPage />} />
         <Route path="/tables/:id" element={<TableDetailPage />} />
         <Route path="/config" element={<ConfigPage />} />
         <Route path="/waiter" element={<WaiterPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
       </Route>
     </Routes>
   );

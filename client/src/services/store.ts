@@ -1,4 +1,4 @@
-import type { Table, Occupation, Product, Waiter, Zone, ProductCategory } from '@/types/models';
+import type { Table, Occupation, Product, Waiter, Zone, ProductCategory, OrderRequest } from '@/types/models';
 import { createFirestoreStore, type FirestoreStore } from './firebaseStore';
 
 let _firebaseStore: FirestoreStore | null = null;
@@ -74,6 +74,20 @@ export const store = {
       status: 'paid',
       ...(ultimo ? { ultimo_servicio: ultimo } : {}),
     });
+    // Mark pending orders for this table as paid
+    await s.orders.markPaidByTable(tableId).catch(() => {});
+  },
+
+  async sendOrder(data: Omit<OrderRequest, 'id' | 'status' | 'sent_at'>): Promise<OrderRequest> {
+    return getStore().orders.create(data);
+  },
+
+  async getOrders(status?: string): Promise<OrderRequest[]> {
+    return getStore().orders.getAll(status as OrderRequest['status'] | undefined);
+  },
+
+  async completeOrder(id: string): Promise<void> {
+    await getStore().orders.markCompleted(id);
   },
 
   async getProducts(q?: string): Promise<Product[]> {

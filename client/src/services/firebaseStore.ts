@@ -15,7 +15,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getDb } from '@/firebase/init';
-import type { Table, Occupation, Product, Waiter, Zone, TableStatus, ProductCategory, GrupoPedido } from '@/types/models';
+import type { Table, Occupation, Product, Waiter, Zone, TableStatus, ProductCategory, GrupoPedido, OrderRequest, OrderStatus } from '@/types/models';
 
 // ── Scoped collection helpers ──────────────────────────────────────────────
 
@@ -119,6 +119,7 @@ export function createFirestoreStore(companyId: string) {
   const PRODUCTS_COL = 'products';
   const OCCUPATIONS_COL = 'occupations';
   const WAITERS_COL = 'waiters';
+  const ORDERS_COL = 'orders';
 
   return {
     // ── Tables ──────────────────────────────────────────────────────────
@@ -342,6 +343,60 @@ export function createFirestoreStore(companyId: string) {
         const database = getDb();
         const ref = docRef(database, companyId, WAITERS_COL, String(waiterId));
         await setDoc(ref, { assigned_table_ids: arrayRemove(tableId) }, { merge: true });
+      },
+    },
+
+    // ── Orders ────────────────────────────────────────────────────────────
+
+    orders: {
+      async getAll(status?: OrderStatus): Promise<OrderRequest[]> {
+        const database = getDb();
+        const ref = col(database, companyId, ORDERS_COL);
+        if (status) {
+          const q = query(ref, where('status', '==', status), orderBy('sent_at', 'desc'));
+          return docsData<OrderRequest>(await getDocs(q));
+        }
+        return docsData<OrderRequest>(await getDocs(query(ref, orderBy('sent_at', 'desc'))));
+      },
+
+      async getByTable(tableId: number): Promise<OrderRequest[]> {
+        const database = getDb();
+        const ref = col(database, companyId, ORDERS_COL);
+        const q = query(ref, where('table_id', '==', tableId), orderBy('sent_at', 'desc'));
+        const snap = await getDocs(q);
+        return docsData<OrderRequest>(snap);
+      },
+
+      async create(data: Omit<OrderRequest, 'id' | 'status' | 'sent_at'>): Promise<OrderRequest> {
+        const database = getDb();
+        const ref = doc(col(database, companyId, ORDERS_COL));
+        const docData = { ...data, status: 'sent' as OrderStatus, sent_at: new Date().toISOString() };
+        await setDoc(ref, docData);
+        return { id: ref.id, ...docData };
+      },
+
+      async update(id: string, data: Partial<OrderRequest>): Promise<void> {
+        const database = getDb();
+        const ref = docRef(database, companyId, ORDERS_COL, id);
+        await setDoc(ref, data, { merge: true });
+      },
+
+      async markCompleted(id: string): Promise<void> {
+        const database = getDb();
+        const ref = docRef(database, companyId, ORDERS_COL, id);
+        await setDoc(ref, { status: 'completed', completed_at: new Date().toISOString() }, { merge: true });
+      },
+
+      async markPaidByTable(tableId: number): Promise<void> {
+        const database = getDb();
+        const ref = col(database, companyId, ORDERS_COL);
+        const q = query(ref, where('table_id', '==', tableId), where('status', 'in', ['sent', 'preparing', 'completed']));
+        const snap = await getDocs(q);
+        await Promise.all(
+          snap.docs.map(d =>
+            setDoc(docRef(database, companyId, ORDERS_COL, d.id), { status: 'paid', paid_at: new Date().toISOString() }, { merge: true }),
+          ),
+        );
       },
     },
 

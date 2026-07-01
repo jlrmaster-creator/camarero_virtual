@@ -20,6 +20,9 @@ export function AdminPage() {
   const [newNombre, setNewNombre] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPass, setNewPass] = useState('');
+  const [newRecNombre, setNewRecNombre] = useState('');
+  const [newRecEmail, setNewRecEmail] = useState('');
+  const [newRecPass, setNewRecPass] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [editing, setEditing] = useState<EditingWaiter | null>(null);
@@ -92,6 +95,46 @@ export function AdminPage() {
       setMsg('Camarero creado correctamente');
     } catch (err: unknown) {
       const m = err instanceof Error ? err.message : 'Error al crear camarero';
+      if (m.includes('email-already-in-use')) {
+        setMsg('Ese email ya está en uso por otro usuario');
+      } else {
+        setMsg(m);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addReceptor() {
+    if (!company || !newRecNombre.trim() || !newRecEmail.trim() || !newRecPass.trim()) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: newRecEmail.trim(), password: newRecPass, returnSecureToken: true }),
+        },
+      );
+      const body = await res.json();
+      if (res.status !== 200) {
+        throw new Error(body.error?.message === 'EMAIL_EXISTS' ? 'email-already-in-use' : body.error?.message ?? 'Error al crear usuario');
+      }
+      const uid: string = body.localId;
+
+      await Promise.all([
+        authService.addCompanyUser(company.id, uid, newRecEmail.trim(), 'receptor', newRecNombre.trim()),
+        authService.addUserCompanyLookup(uid, company.id),
+      ]);
+
+      setNewRecNombre('');
+      setNewRecEmail('');
+      setNewRecPass('');
+      setMsg('Receptor creado correctamente');
+    } catch (err: unknown) {
+      const m = err instanceof Error ? err.message : 'Error al crear receptor';
       if (m.includes('email-already-in-use')) {
         setMsg('Ese email ya está en uso por otro usuario');
       } else {
@@ -422,6 +465,46 @@ export function AdminPage() {
                 );
               })}
             </div>
+          </section>
+
+          <section className="bg-slate-800 rounded-xl p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-white">Añadir receptor</h2>
+            <p className="text-sm text-slate-400">
+              Crea un receptor con nombre, email y contraseña para que pueda recibir pedidos desde la app.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input
+                type="text"
+                value={newRecNombre}
+                onChange={e => setNewRecNombre(e.target.value)}
+                className="bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nombre"
+                disabled={busy}
+              />
+              <input
+                type="email"
+                value={newRecEmail}
+                onChange={e => setNewRecEmail(e.target.value)}
+                className="bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Email (usuario)"
+                disabled={busy}
+              />
+              <input
+                type="password"
+                value={newRecPass}
+                onChange={e => setNewRecPass(e.target.value)}
+                className="bg-slate-700 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Contraseña"
+                disabled={busy}
+              />
+            </div>
+            <button
+              onClick={addReceptor}
+              disabled={busy || !newRecNombre.trim() || !newRecEmail.trim() || !newRecPass.trim()}
+              className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              Crear receptor
+            </button>
           </section>
 
           <section className="bg-slate-800 rounded-xl p-6 space-y-4">

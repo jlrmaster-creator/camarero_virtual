@@ -70,9 +70,28 @@ export interface Session {
   fecha_creacion: string;
 }
 
+export type OrderStatus = 'sent' | 'preparing' | 'completed' | 'paid';
+
+export interface OrderRequest {
+  id: string;
+  table_id: number;
+  table_name: string;
+  zone: string;
+  cliente: string;
+  grupos: GrupoPedido[];
+  total: number;
+  nota?: string;
+  status: OrderStatus;
+  waiter_id: number | null;
+  waiter_name: string;
+  sent_at: string;
+  completed_at?: string;
+  paid_at?: string;
+}
+
 // ── Firebase Auth / Company ────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'waiter';
+export type UserRole = 'admin' | 'waiter' | 'receptor';
 
 export interface Company {
   id: string;

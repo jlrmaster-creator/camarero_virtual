@@ -272,6 +272,30 @@ const ticketIframeRef = useRef<HTMLIFrameElement>(null);
     ticketIframeRef.current?.contentWindow?.print();
   };
 
+  const handleSendOrder = async () => {
+    if (!table || !id) return;
+    const nombre = (table?.nombre as string) ?? '';
+    const tableName = nombre.replace(/^Mesa\s*/, '') || String(table?.numero ?? '');
+    const waiterName = assignedWaiterName;
+    try {
+      await store.sendOrder({
+        table_id: Number(id),
+        table_name: tableName,
+        zone: returnZone === 'interior' ? 'Interior' : 'Terraza',
+        cliente: grupos.map(g => g.nombre).join(', '),
+        grupos,
+        total,
+        waiter_id: waiterId,
+        waiter_name: waiterName,
+      });
+      setSavedMsg('✓ Enviado a cocina');
+      setTimeout(() => setSavedMsg(''), 2000);
+    } catch (e) {
+      setErrorMsg('Error al enviar el pedido');
+      console.error('[TableDetailPage] send order failed:', e);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8 text-slate-500">Cargando...</div>;
   }
@@ -461,6 +485,11 @@ const ticketIframeRef = useRef<HTMLIFrameElement>(null);
             {!blocked && (
               <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
                 {saving ? 'Guardando...' : 'Guardar Pedido'}
+              </button>
+            )}
+            {!blocked && grupos.some(g => g.items.length > 0) && (
+              <button onClick={handleSendOrder} className="btn-primary w-full bg-amber-600 hover:bg-amber-700">
+                Enviar
               </button>
             )}
           </div>

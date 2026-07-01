@@ -7,14 +7,18 @@ export function Layout() {
   const { user, company, role, logOut } = useAuth();
 
   const isAdmin = role === 'admin';
-  const navItems = [
-    { to: '/tables', label: 'Mesas' },
-    { to: '/config', label: 'Catálogo' },
-  ];
+  const isReceptor = role === 'receptor';
+  const navItems = [] as { to: string; label: string }[];
 
-  if (isAdmin) {
-    navItems.push({ to: '/waiter', label: 'Camareros' });
-    navItems.push({ to: '/admin', label: 'Admin' });
+  if (isReceptor) {
+    navItems.push({ to: '/orders', label: 'Pedidos' });
+  } else {
+    navItems.push({ to: '/tables', label: 'Mesas' });
+    navItems.push({ to: '/config', label: 'Catálogo' });
+    if (isAdmin) {
+      navItems.push({ to: '/waiter', label: 'Camareros' });
+      navItems.push({ to: '/admin', label: 'Admin' });
+    }
   }
 
   return (
