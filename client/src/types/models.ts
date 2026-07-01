@@ -63,6 +63,15 @@ export interface Waiter {
   eliminado?: boolean;
 }
 
+export interface Receptor {
+  id: string;
+  nombre: string;
+  auth_uid: string;
+  activo: boolean;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+}
+
 export interface Session {
   id: number;
   codigo: string;

@@ -1,4 +1,4 @@
-import type { Table, Occupation, Product, Waiter, Zone, ProductCategory, OrderRequest } from '@/types/models';
+import type { Table, Occupation, Product, Waiter, Zone, ProductCategory, OrderRequest, Receptor } from '@/types/models';
 import { createFirestoreStore, type FirestoreStore } from './firebaseStore';
 
 let _firebaseStore: FirestoreStore | null = null;
@@ -144,6 +144,36 @@ export const store = {
 
   async unassignTable(waiterId: number, tableId: number): Promise<void> {
     await getStore().waiters.unassignTable(waiterId, tableId);
+  },
+
+  async getReceptors(activo?: boolean): Promise<Receptor[]> {
+    return getStore().receptors.getAll(activo);
+  },
+
+  async createReceptor(nombre: string, authUid: string): Promise<Receptor> {
+    return getStore().receptors.create(nombre, authUid);
+  },
+
+  async updateReceptor(id: string, data: Partial<Pick<Receptor, 'nombre' | 'activo'>>): Promise<Receptor> {
+    const r = await getStore().receptors.update(id, data);
+    if (!r) throw new Error('Receptor not found');
+    return r;
+  },
+
+  async deleteReceptor(id: string): Promise<void> {
+    await getStore().receptors.remove(id);
+  },
+
+  async startReceptorShift(id: string): Promise<Receptor> {
+    const r = await getStore().receptors.startShift(id);
+    if (!r) throw new Error('Receptor not found');
+    return r;
+  },
+
+  async endReceptorShift(id: string): Promise<Receptor> {
+    const r = await getStore().receptors.endShift(id);
+    if (!r) throw new Error('Receptor not found');
+    return r;
   },
 
   async resetAllTables(): Promise<void> {

@@ -4,9 +4,15 @@ import { createFirestoreStore, type FirestoreStore } from '@/services/firebaseSt
 import * as authService from '@/firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 import { generateReportHtml, printReport } from '@/utils/report';
-import type { Waiter, CompanyUser } from '@/types/models';
+import type { Waiter, CompanyUser, Receptor } from '@/types/models';
 
 interface EditingWaiter {
+  id: string;
+  nombre: string;
+  activo: boolean;
+}
+
+interface EditingReceptor {
   id: string;
   nombre: string;
   activo: boolean;
@@ -16,6 +22,7 @@ export function AdminPage() {
   const { user, company, role, roleReady, logOut } = useAuth();
   const [fsStore, setFsStore] = useState<FirestoreStore | null>(null);
   const [waiters, setWaiters] = useState<Waiter[]>([]);
+  const [receptors, setReceptors] = useState<Receptor[]>([]);
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
   const [newNombre, setNewNombre] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -28,11 +35,14 @@ export function AdminPage() {
   const [editing, setEditing] = useState<EditingWaiter | null>(null);
   const [editNombre, setEditNombre] = useState('');
   const [editPass, setEditPass] = useState('');
+  const [editingRec, setEditingRec] = useState<EditingReceptor | null>(null);
+  const [editRecNombre, setEditRecNombre] = useState('');
 
   const loadData = useCallback(async () => {
     if (!company || !fsStore) return;
-    let [w, u] = await Promise.all([
+    let [w, r, u] = await Promise.all([
       fsStore.waiters.getAll(),
+      fsStore.receptors.getAll(),
       authService.getCompanyUsers(company.id),
     ]);
 
@@ -44,6 +54,7 @@ export function AdminPage() {
     }
 
     setWaiters(w);
+    setReceptors(r);
     setCompanyUsers(u);
   }, [company, fsStore]);
 
@@ -127,11 +138,13 @@ export function AdminPage() {
       await Promise.all([
         authService.addCompanyUser(company.id, uid, newRecEmail.trim(), 'receptor', newRecNombre.trim()),
         authService.addUserCompanyLookup(uid, company.id),
+        fsStore!.receptors.create(newRecNombre.trim(), uid),
       ]);
 
       setNewRecNombre('');
       setNewRecEmail('');
       setNewRecPass('');
+      await loadData();
       setMsg('Receptor creado correctamente');
     } catch (err: unknown) {
       const m = err instanceof Error ? err.message : 'Error al crear receptor';
@@ -244,9 +257,105 @@ export function AdminPage() {
     }
   }
 
+  function getUserForReceptor(receptor: Receptor): CompanyUser | undefined {
+    return companyUsers.find(u => receptor.auth_uid === u.id);
+  }
+
+  async function toggleBlockReceptor(receptor: Receptor) {
+    if (!fsStore || !company) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const u = getUserForReceptor(receptor);
+      if (!u) { setMsg('Usuario no encontrado'); setBusy(false); return; }
+      const newBlocked = !u.bloqueado;
+      await authService.updateCompanyUser(company.id, u.id, { bloqueado: newBlocked });
+      await loadData();
+      setMsg(newBlocked ? 'Receptor bloqueado' : 'Receptor desbloqueado');
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al bloquear');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteReceptor(receptor: Receptor) {
+    if (!fsStore || !company) return;
+    if (!window.confirm(`¿Eliminar a ${receptor.nombre}?`)) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const u = getUserForReceptor(receptor);
+      if (u) {
+        await authService.updateCompanyUser(company.id, u.id, { eliminado: true });
+      }
+      await fsStore.receptors.remove(receptor.id);
+      await loadData();
+      setMsg('Receptor eliminado');
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al eliminar');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEditReceptor(receptor: Receptor) {
+    setEditingRec({ id: receptor.id, nombre: receptor.nombre, activo: receptor.activo });
+    setEditRecNombre(receptor.nombre);
+  }
+
+  async function saveEditReceptor() {
+    if (!fsStore || !editingRec || !editRecNombre.trim() || !company) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const receptor = receptors.find(r => r.id === editingRec.id);
+      if (!receptor) { setMsg('Receptor no encontrado'); setBusy(false); return; }
+
+      const u = getUserForReceptor(receptor);
+      if (u) {
+        await authService.updateCompanyUser(company.id, u.id, { displayName: editRecNombre.trim() });
+      }
+
+      await fsStore.receptors.update(editingRec.id, {
+        nombre: editRecNombre.trim(),
+        activo: editingRec.activo,
+      });
+
+      setEditingRec(null);
+      setEditRecNombre('');
+      await loadData();
+      setMsg('Receptor actualizado');
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al actualizar');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function closeAllReceptorShifts() {
+    if (!fsStore || !company) return;
+    if (!window.confirm('¿Estás seguro de que quieres cerrar el turno de TODOS los receptores activos?')) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const activeReceptors = receptors.filter(r => r.activo);
+      await Promise.all(
+        activeReceptors.map(r => fsStore.receptors.update(r.id, { activo: false }))
+      );
+      await loadData();
+      setMsg(`Se han cerrado ${activeReceptors.length} turnos.`);
+    } catch (err: unknown) {
+      setMsg(err instanceof Error ? err.message : 'Error al cerrar turnos');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const isAdmin = role === 'admin';
 
   const activeUsers = companyUsers.filter(u => !u.eliminado && u.role === 'waiter');
+  const activeReceptorUsers = companyUsers.filter(u => !u.eliminado && u.role === 'receptor');
 
   async function handleDailyReport() {
     if (!fsStore || !company) return;
@@ -505,6 +614,117 @@ export function AdminPage() {
             >
               Crear receptor
             </button>
+          </section>
+
+          <section className="bg-slate-800 rounded-xl p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-white">
+                Receptores ({activeReceptorUsers.length})
+              </h2>
+              {receptors.some(r => r.activo) && (
+                <button
+                  onClick={closeAllReceptorShifts}
+                  disabled={busy}
+                  className="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Cerrar todos los turnos
+                </button>
+              )}
+            </div>
+
+            {activeReceptorUsers.length === 0 && (
+              <p className="text-slate-500 text-sm text-center py-4">No hay receptores. Crea el primero arriba.</p>
+            )}
+
+            <div className="space-y-2">
+              {receptors.map(r => {
+                const u = getUserForReceptor(r);
+                const isBlocked = u?.bloqueado;
+                const isDeleted = u?.eliminado;
+
+                return (
+                  <div key={r.id} className="bg-slate-700/50 rounded-lg px-4 py-3">
+                    {editingRec?.id === r.id ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={editRecNombre}
+                          onChange={e => setEditRecNombre(e.target.value)}
+                          className="w-full bg-slate-600 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={busy}
+                        />
+                        <label className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={editingRec.activo}
+                            onChange={e => setEditingRec({ ...editingRec, activo: e.target.checked })}
+                            disabled={busy}
+                          />
+                          Activo (en turno)
+                        </label>
+                        <div className="flex gap-2">
+                          <button onClick={saveEditReceptor} disabled={busy} className="bg-green-600 text-white text-xs px-3 py-1 rounded">
+                            Guardar
+                          </button>
+                          <button onClick={() => setEditingRec(null)} className="bg-slate-600 text-white text-xs px-3 py-1 rounded">
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-white font-medium ${isDeleted ? 'line-through text-slate-500' : ''}`}>
+                            {r.nombre}
+                          </span>
+                          {u && (
+                            <span className="text-slate-400 text-xs truncate hidden sm:inline">{u.email}</span>
+                          )}
+                          {isDeleted && (
+                            <span className="text-xs bg-red-900/50 text-red-300 px-2 py-0.5 rounded-full">Eliminado</span>
+                          )}
+                          {isBlocked && !isDeleted && (
+                            <span className="text-xs bg-yellow-900/50 text-yellow-300 px-2 py-0.5 rounded-full">Bloqueado</span>
+                          )}
+                          {r.activo && !isBlocked && !isDeleted && (
+                            <span className="text-xs bg-green-600 text-green-100 px-2 py-0.5 rounded-full">En turno</span>
+                          )}
+                        </div>
+                        {!isDeleted && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => startEditReceptor(r)}
+                              disabled={busy}
+                              className="bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 text-xs px-2 py-1 rounded"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => toggleBlockReceptor(r)}
+                              disabled={busy}
+                              className={`text-xs px-2 py-1 rounded ${
+                                isBlocked
+                                  ? 'bg-green-600/20 text-green-300 hover:bg-green-600/40'
+                                  : 'bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/40'
+                              }`}
+                            >
+                              {isBlocked ? 'Desbloquear' : 'Bloquear'}
+                            </button>
+                            <button
+                              onClick={() => deleteReceptor(r)}
+                              disabled={busy}
+                              className="bg-red-600/20 text-red-300 hover:bg-red-600/40 text-xs px-2 py-1 rounded"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </section>
 
           <section className="bg-slate-800 rounded-xl p-6 space-y-4">

@@ -78,6 +78,14 @@ service cloud.firestore {
         allow delete: if isAdmin(companyId);
       }
 
+      // ── Receptors (start/end shift, creation) ─────────────────────────
+      match /receptors/{receptorId} {
+        allow read: if isMember(companyId);
+        allow create: if isMember(companyId);
+        allow update: if isMember(companyId);
+        allow delete: if isAdmin(companyId);
+      }
+
       // ── Tables ────────────────────────────────────────────────────────
       match /tables/{tableId} {
         allow read: if isMember(companyId);

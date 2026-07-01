@@ -15,7 +15,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getDb } from '@/firebase/init';
-import type { Table, Occupation, Product, Waiter, Zone, TableStatus, ProductCategory, GrupoPedido, OrderRequest, OrderStatus } from '@/types/models';
+import type { Table, Occupation, Product, Waiter, Zone, TableStatus, ProductCategory, GrupoPedido, OrderRequest, OrderStatus, Receptor } from '@/types/models';
 
 // ── Scoped collection helpers ──────────────────────────────────────────────
 
@@ -120,6 +120,7 @@ export function createFirestoreStore(companyId: string) {
   const OCCUPATIONS_COL = 'occupations';
   const WAITERS_COL = 'waiters';
   const ORDERS_COL = 'orders';
+  const RECEPTORS_COL = 'receptors';
 
   return {
     // ── Tables ──────────────────────────────────────────────────────────
@@ -343,6 +344,63 @@ export function createFirestoreStore(companyId: string) {
         const database = getDb();
         const ref = docRef(database, companyId, WAITERS_COL, String(waiterId));
         await setDoc(ref, { assigned_table_ids: arrayRemove(tableId) }, { merge: true });
+      },
+    },
+
+    // ── Receptors ────────────────────────────────────────────────────────
+
+    receptors: {
+      async getAll(activo?: boolean): Promise<Receptor[]> {
+        const database = getDb();
+        const ref = col(database, companyId, RECEPTORS_COL);
+        const constraints = [];
+        if (activo !== undefined) constraints.push(where('activo', '==', activo));
+        constraints.push(orderBy('nombre'));
+        const snap = await getDocs(query(ref, ...constraints));
+        return docsData<Receptor>(snap);
+      },
+
+      async create(nombre: string, authUid: string): Promise<Receptor> {
+        const database = getDb();
+        const ref = doc(database, 'companies', companyId, RECEPTORS_COL, authUid);
+        const data: Omit<Receptor, 'id'> = {
+          nombre,
+          auth_uid: authUid,
+          activo: false,
+          fecha_inicio: null,
+          fecha_fin: null,
+        };
+        await setDoc(ref, data);
+        return { id: ref.id, ...data };
+      },
+
+      async update(id: string, data: Partial<Pick<Receptor, 'nombre' | 'activo'>>): Promise<Receptor | undefined> {
+        const database = getDb();
+        const ref = docRef(database, companyId, RECEPTORS_COL, id);
+        await setDoc(ref, data, { merge: true });
+        const snap = await getDoc(ref);
+        return docData<Receptor>(snap);
+      },
+
+      async remove(id: string): Promise<void> {
+        const database = getDb();
+        await deleteDoc(docRef(database, companyId, RECEPTORS_COL, id));
+      },
+
+      async startShift(id: string): Promise<Receptor | undefined> {
+        const database = getDb();
+        const ref = docRef(database, companyId, RECEPTORS_COL, id);
+        await setDoc(ref, { activo: true, fecha_inicio: new Date().toISOString() }, { merge: true });
+        const snap = await getDoc(ref);
+        return docData<Receptor>(snap);
+      },
+
+      async endShift(id: string): Promise<Receptor | undefined> {
+        const database = getDb();
+        const ref = docRef(database, companyId, RECEPTORS_COL, id);
+        await setDoc(ref, { activo: false, fecha_fin: new Date().toISOString() }, { merge: true });
+        const snap = await getDoc(ref);
+        return docData<Receptor>(snap);
       },
     },
 
