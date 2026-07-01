@@ -16,6 +16,7 @@ export function Layout() {
     navItems.push({ to: '/tables', label: 'Mesas' });
     navItems.push({ to: '/config', label: 'Catálogo' });
     if (isAdmin) {
+      navItems.push({ to: '/orders', label: 'Pedidos' });
       navItems.push({ to: '/waiter', label: 'Camareros' });
       navItems.push({ to: '/admin', label: 'Admin' });
     }
