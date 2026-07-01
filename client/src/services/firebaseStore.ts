@@ -238,7 +238,11 @@ export function createFirestoreStore(companyId: string) {
       async update(id: number, data: Partial<Occupation>): Promise<Occupation | undefined> {
         const database = getDb();
         const ref = docRef(database, companyId, OCCUPATIONS_COL, String(id));
-        await setDoc(ref, { ...data, fecha_actualizacion: new Date().toISOString() }, { merge: true });
+        const clean = { ...data };
+        if ('cliente' in clean && (clean.cliente === 'undefined' || clean.cliente === undefined)) {
+          clean.cliente = '';
+        }
+        await setDoc(ref, { ...clean, fecha_actualizacion: new Date().toISOString() }, { merge: true });
         const snap = await getDoc(ref);
         return docData<Occupation>(snap);
       },

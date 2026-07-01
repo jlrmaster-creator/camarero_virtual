@@ -17,6 +17,12 @@ function calcTotal(occ: Occupation): number {
   return getAllItems(occ).reduce((sum, item) => sum + item.precio * item.cantidad, 0);
 }
 
+function safeCliente(cliente: string | undefined, grupos?: GrupoPedido[]): string {
+  const c = (cliente && cliente !== 'undefined' ? cliente : '')
+    || (grupos?.[0]?.nombre ?? '');
+  return c;
+}
+
 function isToday(isoStr: string): boolean {
   const d = new Date(isoStr);
   const now = new Date();
@@ -80,7 +86,7 @@ export function generateReportHtml(params: {
       const tableName = params.tableNames[occ.table_id] || `Mesa ${occ.table_id}`;
       const t = calcTotal(occ);
       const waiterName = params.waiterNames[occ.waiter_id ?? 0] || '—';
-      const cliente = occ.cliente || (occ.grupos?.[0]?.nombre ?? '');
+      const cliente = safeCliente(occ.cliente, occ.grupos);
       return { tableName, waiterName, cliente, total: t };
     })
     .sort((a, b) => b.total - a.total);
@@ -91,7 +97,7 @@ export function generateReportHtml(params: {
       const tableName = params.tableNames[occ.table_id] || `Mesa ${occ.table_id}`;
       const t = calcTotal(occ);
       const waiterName = params.waiterNames[occ.waiter_id ?? 0] || '—';
-      const cliente = occ.cliente || (occ.grupos?.[0]?.nombre ?? '');
+      const cliente = safeCliente(occ.cliente, occ.grupos);
       return { tableName, waiterName, cliente, total: t };
     })
     .sort((a, b) => b.total - a.total);
@@ -187,12 +193,19 @@ export function generateReportHtml(params: {
 </body></html>`;
 }
 
+export function openReport(html: string): string {
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  window.open(url);
+  return url;
+}
+
 export function printReport(html: string): void {
-  const win = window.open('', '_blank');
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url);
   if (win) {
-    win.document.write(html);
-    win.document.close();
     win.focus();
-    setTimeout(() => win.print(), 500);
+    setTimeout(() => win.print(), 800);
   }
 }

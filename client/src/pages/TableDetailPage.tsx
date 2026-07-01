@@ -5,7 +5,7 @@ import { ProductAutocomplete } from '@/components/ProductAutocomplete';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWaiter } from '@/context/WaiterContext';
 import { useAuth } from '@/context/AuthContext';
-import { generateTicketHtml, printTicket } from '@/utils/ticket';
+import { generateTicketHtml, printTicket, shareTicket } from '@/utils/ticket';
 import type { Zone, OrderItem, Product, GrupoPedido } from '@/types/models';
 
 let itemIdCounter = 0;
@@ -271,6 +271,10 @@ const [ticketHtml, setTicketHtml] = useState('');
     if (ticketHtml) printTicket(ticketHtml);
   };
 
+  const handleShareTicket = () => {
+    if (ticketHtml) shareTicket(ticketHtml, `ticket_mesa_${id}.html`);
+  };
+
   if (loading) {
     return <div className="text-center py-8 text-slate-500">Cargando...</div>;
   }
@@ -523,7 +527,10 @@ const [ticketHtml, setTicketHtml] = useState('');
           </div>
           <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 pb-8 flex gap-3 justify-center">
             <button onClick={handlePrintTicket} className="btn-primary">
-              Imprimir / Guardar PDF
+              Imprimir / PDF
+            </button>
+            <button onClick={handleShareTicket} className="btn-primary">
+              Compartir
             </button>
             <button onClick={() => setShowTicket(false)} className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-6 py-2 rounded-lg font-medium">
               Cerrar
