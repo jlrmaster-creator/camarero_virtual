@@ -8,21 +8,14 @@ Optimizada para uso desde móvil, funciona en tablet y escritorio.
 ## Stack Tecnológico (Implementado)
 
 - **Frontend**: React 18, Vite 5, TypeScript, TailwindCSS
-- **Backend**: Node.js, Express, TypeScript, SQLite (better-sqlite3)
-- **Cloud**: Firebase Authentication + Firestore
+- **Cloud**: Firebase Authentication + Firestore (única fuente de datos)
 - **PWA**: Service Worker propio (no librerías), manifest v2
-
-> Desviación de la especificación original: Se añadió Firebase como fuente de datos
-> opcional para permitir uso multidispositivo sin servidor propio. La app sigue
-> funcionando en modo 100% local (Express + SQLite o localStorage).
 
 ---
 
-## Fuentes de datos (orden de prioridad)
+## Fuente de datos
 
-1. **Firebase** — Si hay credenciales configuradas. Requiere autenticación.
-2. **API local** — Si el servidor Express está corriendo.
-3. **LocalStorage** — Fallback en el navegador.
+1. **Firebase** — Única fuente de datos. Requiere autenticación con Firebase Auth.
 
 ---
 

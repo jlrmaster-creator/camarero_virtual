@@ -29,7 +29,7 @@ export function TableDetailPage() {
   const location = useLocation();
   const returnZone: Zone = (location.state as { zone?: Zone })?.zone ?? 'interior';
   const { currentWaiter } = useWaiter();
-  const { role } = useAuth();
+  const { role, company } = useAuth();
   const noShift = role === 'waiter' && !currentWaiter;
 
   const [table, setTable] = useState<Record<string, unknown> | null>(null);
@@ -149,8 +149,14 @@ const [ticketHtml, setTicketHtml] = useState('');
     setGrupos(prev => prev.map(g => g.id === groupId ? { ...g, nombre } : g));
   };
 
-  const updateGroupComensales = (groupId: string, comensales: number) => {
-    setGrupos(prev => prev.map(g => g.id === groupId ? { ...g, comensales } : g));
+  const updateGroupComensales = (groupId: string, raw: string) => {
+    setGrupos(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      if (raw === '') return { ...g, comensales: 0 };
+      const num = parseInt(raw, 10);
+      if (isNaN(num) || num < 1) return g;
+      return { ...g, comensales: Math.min(num, 20) };
+    }));
   };
 
   const saveOccupation = useCallback(async (data: { grupos: GrupoPedido[]; total: number }) => {
@@ -158,7 +164,7 @@ const [ticketHtml, setTicketHtml] = useState('');
     const occ = table.occupation as Record<string, unknown> | null;
     const allItems = data.grupos.flatMap(g => g.items);
     const primerCliente = data.grupos[0]?.nombre ?? '';
-    const totalComensales = data.grupos.reduce((s, g) => s + g.comensales, 0);
+    const totalComensales = data.grupos.reduce((s, g) => s + (g.comensales || 1), 0);
     const payload = {
       cliente: primerCliente,
       comensales: totalComensales,
@@ -242,6 +248,7 @@ const [ticketHtml, setTicketHtml] = useState('');
     const tableName = nombre.replace(/^Mesa\s*/, '') || String(table?.numero ?? '');
     const totalComensales = grupos.reduce((s, g) => s + g.comensales, 0);
     const html = generateTicketHtml({
+      companyName: company?.name,
       tableName,
       zone: returnZone === 'interior' ? 'Interior' : 'Terraza',
       waiterName: assignedWaiterName,
@@ -351,10 +358,10 @@ const [ticketHtml, setTicketHtml] = useState('');
                       min={1}
                       max={20}
                       className="input w-14 text-center"
-                      value={grupo.comensales}
+                      value={grupo.comensales || ''}
                       onChange={e => {
                         if (blocked) return;
-                        updateGroupComensales(grupo.id, Number(e.target.value) || 1);
+                        updateGroupComensales(grupo.id, e.target.value);
                       }}
                       disabled={blocked}
                     />

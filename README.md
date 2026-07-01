@@ -6,15 +6,16 @@ Aplicación web progresiva (PWA) para la gestión de mesas de bares y restaurant
 
 - Gestión de 60 mesas (30 interior + 30 terraza) con pestañas independientes
 - Control de camareros por jornada laboral (inicio/fin de turno)
+- **Múltiples grupos por mesa** — Varios clientes/grupos (ej. "Familia 01" + "Familia 02") con pedidos y subtotales independientes
 - Comandas con autocompletado de productos desde catálogo
 - Catálogo de productos con precios editable
 - Auto-guardado en cada cambio
-- Generación de ticket PDF (descarga / WhatsApp)
-- Informe de cierre de caja en PDF
+- Ticket en modal con zoom, desglose por grupo y QR
+- Administración: reset de mesas (pedidos, no catálogo)
 - Autenticación con Firebase (admin + camareros)
 - Roles: admin (gestión completa) y waiter (solo servicio)
 - Bloqueo de mesas entre camareros
-- Tres fuentes de datos: Firebase, API local, almacenamiento local
+- Firebase como única fuente de datos
 - Modo claro/oscuro
 - Diseño responsive (móvil, tablet, escritorio)
 - Instalable como PWA en la pantalla de inicio
@@ -23,9 +24,7 @@ Aplicación web progresiva (PWA) para la gestión de mesas de bares y restaurant
 ## Stack Tecnológico
 
 - **Frontend**: React 18, Vite 5, TypeScript, TailwindCSS
-- **Backend**: Node.js, Express, TypeScript
-- **Base de datos**: SQLite (better-sqlite3) — para modo API local
-- **Cloud**: Firebase Authentication + Firestore — para modo multidispositivo
+- **Cloud**: Firebase Authentication + Firestore
 - **PWA**: Service Worker con estrategia network-first para HTML, cache-first para assets
 
 ## Instalación

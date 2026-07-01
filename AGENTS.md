@@ -111,6 +111,31 @@ npm run test -- -t "test name"  # Single test by name pattern
 - Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `style:`, `test:`, `chore:`
 - `.gitignore` must exclude: `node_modules/`, `dist/`, `.env`, `.DS_Store`
 
+### Grupos / Múltiples clientes por mesa
+- `GrupoPedido` model: cada grupo tiene `id`, `nombre`, `comensales`, `items: OrderItem[]`
+- `Occupation.grupos` almacena los grupos (array). Se inicializa con un grupo por defecto en `create`
+- La UI permite añadir/renombrar/eliminar grupos dentro de una misma mesa
+- Cada grupo tiene su propio `ProductAutocomplete` y lista de items con subtotal
+- El ticket generado muestra desglose por grupo (nombre, items, subtotal)
+- `TableCard` muestra la concatenación de nombres de grupo (ej. "Familia 01 + Familia 02")
+- Compatibilidad hacia atrás: si `grupos` no existe, se crea un grupo único a partir de `cliente`/`items` legacy
+
+### Admin: Reset de mesas
+- Botón "Resetear mesas" en AdminPage (sección roja, tras confirmación doble)
+- Desactiva todas las ocupaciones activas y resetea todas las mesas a `status: 'free'`
+- Elimina `ultimo_servicio` de todas las mesas
+- **No afecta** al catálogo de productos, camareros ni asignaciones de mesas
+
+### Ticket en modal
+- Ticket se muestra en un modal con `iframe` + `srcDoc` (aislamiento de estilos)
+- Botones: "Imprimir / Guardar PDF" y "Cerrar"
+- Scrolleable + pinch-zoomable (`touch-action: pan-y pinch-zoom`, `maximum-scale=5.0`)
+- QR 260px, total 32px, body 18px
+
+### Indicador de mesa pagada
+- Icono `✓` en azul fuerte (`text-blue-500`) sin texto, en esquina superior derecha
+- `ultimo_servicio` guarda `cliente`, `total`, `comensales` y `grupos` al finalizar servicio
+
 ### PWA
 - Service worker in `/public/sw.js` (custom, not generated)
 - Manifest at `/public/manifest.json` with short_name, icons, theme_color

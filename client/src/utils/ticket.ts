@@ -5,6 +5,7 @@ export interface TicketGrupo {
 }
 
 export function generateTicketHtml(params: {
+  companyName?: string;
   tableName: string;
   zone: string;
   waiterName: string;
@@ -17,6 +18,7 @@ export function generateTicketHtml(params: {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const title = params.companyName || 'Camarero Virtual';
 
   const gruposHtml = params.grupos
     ? params.grupos.map(g => `
@@ -27,13 +29,20 @@ export function generateTicketHtml(params: {
       </div>`).join('<hr class="dashed">')
     : `<div class="items">${((params.nota) || '').replace(/\n/g, '<br>')}</div>`;
 
-  const qrData = encodeURIComponent(
-    `Mesa: ${params.tableName} (${params.zone})\n` +
+  let qrText = `Mesa: ${params.tableName} (${params.zone})\n` +
     `Fecha: ${dateStr} ${timeStr}\n` +
-    `Camarero: ${params.waiterName}\n` +
-    `${params.cliente ? `Cliente: ${params.cliente}\n` : ''}` +
-    `Total: ${params.total.toFixed(2)}€`
-  );
+    `Camarero: ${params.waiterName}\n`;
+  if (params.grupos) {
+    params.grupos.forEach(g => {
+      qrText += `\n--- ${g.nombre} ---\n`;
+      qrText += g.items.replace(/<br>/g, '\n') + '\n';
+      qrText += `Subtotal: ${g.subtotal.toFixed(2)}€\n`;
+    });
+  } else if (params.cliente) {
+    qrText += `\nCliente: ${params.cliente}\n`;
+  }
+  qrText += `\nTOTAL: ${params.total.toFixed(2)}€`;
+  const qrData = encodeURIComponent(qrText);
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -51,12 +60,12 @@ export function generateTicketHtml(params: {
   .subtotal { font-size: 18px; font-weight: 600; text-align: right; margin-top: 6px; color: #444; }
   .total { font-size: 32px; font-weight: bold; text-align: center; margin: 20px 0; }
   .qr { text-align: center; margin-top: 28px; }
-  .qr img { width: 260px; height: 260px; }
+  .qr img { width: 180px; height: 180px; }
   .qr-label { font-size: 14px; color: #999; margin-top: 6px; }
   .footer { text-align: center; font-size: 15px; margin-top: 20px; color: #888; }
 </style></head>
 <body>
-  <h2>Camarero Virtual</h2>
+  <h2>${title}</h2>
   <div class="header">${dateStr} &middot; ${timeStr}</div>
   <hr>
   <div class="row"><span>Mesa</span><strong>${params.tableName}</strong></div>
