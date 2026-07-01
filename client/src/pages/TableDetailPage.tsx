@@ -36,6 +36,7 @@ export function TableDetailPage() {
   const [loading, setLoading] = useState(true);
   const [grupos, setGrupos] = useState<GrupoPedido[]>([]);
 const [saving, setSaving] = useState(false);
+const [savedMsg, setSavedMsg] = useState('');
 const [errorMsg, setErrorMsg] = useState('');
 const [blockedByOther, setBlockedByOther] = useState(false);
 const [assignedWaiterName, setAssignedWaiterName] = useState('Sin asignar');
@@ -194,7 +195,8 @@ const [ticketHtml, setTicketHtml] = useState('');
     setErrorMsg('');
     try {
       await saveOccupation({ grupos, total });
-      setErrorMsg('');
+      setSavedMsg('✓ Guardado');
+      setTimeout(() => setSavedMsg(''), 2000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al guardar. Comprueba tu conexión.';
       setErrorMsg(msg);
@@ -454,6 +456,7 @@ const [ticketHtml, setTicketHtml] = useState('');
           <div className="card space-y-3">
             <h3 className="font-semibold">Total</h3>
             <div className="text-2xl font-bold">{total.toFixed(2)}€</div>
+            {savedMsg && <p className="text-green-400 text-sm text-center">{savedMsg}</p>}
             {!blocked && (
               <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
                 {saving ? 'Guardando...' : 'Guardar Pedido'}
@@ -518,7 +521,7 @@ const [ticketHtml, setTicketHtml] = useState('');
               title="Ticket"
             />
           </div>
-          <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 flex gap-3 justify-center">
+          <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 pb-8 flex gap-3 justify-center">
             <button onClick={handlePrintTicket} className="btn-primary">
               Imprimir / Guardar PDF
             </button>

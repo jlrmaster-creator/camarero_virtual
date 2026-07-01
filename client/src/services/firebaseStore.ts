@@ -14,7 +14,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getDb } from '@/firebase/init';
-import type { Table, Occupation, Product, Waiter, Zone, TableStatus, ProductCategory } from '@/types/models';
+import type { Table, Occupation, Product, Waiter, Zone, TableStatus, ProductCategory, GrupoPedido } from '@/types/models';
 
 // ── Scoped collection helpers ──────────────────────────────────────────────
 
@@ -208,7 +208,7 @@ export function createFirestoreStore(companyId: string) {
         return occupations[0];
       },
 
-      async create(data: { table_id: number; waiter_id?: number | null; cliente?: string; comensales?: number; nota?: string }): Promise<Occupation> {
+      async create(data: { table_id: number; waiter_id?: number | null; cliente?: string; comensales?: number; nota?: string; grupos?: GrupoPedido[] }): Promise<Occupation> {
         const database = getDb();
         const ref = doc(col(database, companyId, OCCUPATIONS_COL));
         const docData = {
@@ -219,7 +219,7 @@ export function createFirestoreStore(companyId: string) {
           nota: data.nota ?? '',
           total: 0,
           active: true,
-          grupos: [
+          grupos: data.grupos ?? [
             {
               id: 'g1',
               nombre: data.cliente?.trim() || 'Comensal',
