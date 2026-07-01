@@ -28,6 +28,7 @@ function isToday(isoStr: string): boolean {
 export function generateReportHtml(params: {
   companyName?: string;
   occupations: Occupation[];
+  activeOccupations?: Occupation[];
   waiterNames: Record<number | string, string>;
   tableNames: Record<number, string>;
 }): string {
@@ -73,8 +74,19 @@ export function generateReportHtml(params: {
   }
   const waiterRows = Array.from(waiterMap.values()).sort((a, b) => b.total - a.total);
 
-  // Per-table detail
+  // Per-table detail (finished)
   const tableRows = todayOccs
+    .map(occ => {
+      const tableName = params.tableNames[occ.table_id] || `Mesa ${occ.table_id}`;
+      const t = calcTotal(occ);
+      const waiterName = params.waiterNames[occ.waiter_id ?? 0] || '—';
+      const cliente = occ.cliente || (occ.grupos?.[0]?.nombre ?? '');
+      return { tableName, waiterName, cliente, total: t };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  // En curso (active occupations)
+  const activeRows = (params.activeOccupations ?? [])
     .map(occ => {
       const tableName = params.tableNames[occ.table_id] || `Mesa ${occ.table_id}`;
       const t = calcTotal(occ);
@@ -99,6 +111,12 @@ export function generateReportHtml(params: {
     `<tr><td>${t.tableName}</td><td>${t.waiterName}</td><td>${t.cliente}</td><td class="num">${t.total.toFixed(2)}€</td></tr>`
   ).join('\n');
 
+  const activeHtml = activeRows.map(t =>
+    `<tr><td>${t.tableName}</td><td>${t.waiterName}</td><td>${t.cliente}</td><td class="num">${t.total.toFixed(2)}€</td></tr>`
+  ).join('\n');
+
+  const showActive = activeRows.length > 0;
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title>
@@ -111,6 +129,8 @@ export function generateReportHtml(params: {
   .resumen-item { text-align: center; background: #f5f5f5; border-radius: 8px; padding: 12px 24px; }
   .resumen-item .val { font-size: 28px; font-weight: bold; }
   .resumen-item .lab { font-size: 13px; color: #666; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; margin-left: 8px; font-weight: 400; }
+  .badge-active { background: #e8f5e9; color: #2e7d32; }
   table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
   th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; font-size: 13px; }
   th { background: #f0f0f0; font-weight: 600; }
@@ -155,6 +175,13 @@ export function generateReportHtml(params: {
     <thead><tr><th>Mesa</th><th>Camarero</th><th>Cliente</th><th class="num">Total</th></tr></thead>
     <tbody>${tableHtml}</tbody>
   </table>
+
+  ${showActive ? `
+  <h2>En curso <span class="badge badge-active">${activeRows.length} mesas</span></h2>
+  <table>
+    <thead><tr><th>Mesa</th><th>Camarero</th><th>Cliente</th><th class="num">Total</th></tr></thead>
+    <tbody>${activeHtml}</tbody>
+  </table>` : ''}
 
   <div class="footer">Generado por Camarero Virtual</div>
 </body></html>`;

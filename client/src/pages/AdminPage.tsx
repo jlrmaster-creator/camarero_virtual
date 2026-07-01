@@ -210,8 +210,9 @@ export function AdminPage() {
     setBusy(true);
     setMsg('');
     try {
-      const [occupations, tables, waiters] = await Promise.all([
+      const [occupations, activeOccupations, tables, waiters] = await Promise.all([
         fsStore.occupations.getAllFinished(),
+        fsStore.occupations.getAllActive(),
         fsStore.tables.getAll(),
         fsStore.waiters.getAll(),
       ]);
@@ -226,6 +227,7 @@ export function AdminPage() {
       const html = generateReportHtml({
         companyName: company.name,
         occupations,
+        activeOccupations,
         waiterNames,
         tableNames,
       });
