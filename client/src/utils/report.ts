@@ -193,19 +193,20 @@ export function generateReportHtml(params: {
 </body></html>`;
 }
 
-export function openReport(html: string): string {
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  window.open(url);
-  return url;
-}
-
 export function printReport(html: string): void {
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url);
-  if (win) {
-    win.focus();
-    setTimeout(() => win.print(), 800);
-  }
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.top = '0';
+  iframe.style.left = '0';
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = 'none';
+  iframe.style.zIndex = '9999';
+  iframe.srcdoc = html;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+    }, 500);
+  };
 }

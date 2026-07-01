@@ -86,29 +86,4 @@ export function generateTicketHtml(params: {
 </body></html>`;
 }
 
-export function printTicket(html: string): void {
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url);
-  if (win) {
-    win.focus();
-    setTimeout(() => win.print(), 800);
-  }
-}
 
-export async function shareTicket(html: string, filename = 'ticket.html'): Promise<void> {
-  if (!navigator.share) {
-    printTicket(html);
-    return;
-  }
-  const blob = new Blob([html], { type: 'text/html' });
-  const file = new File([blob], filename, { type: 'text/html' });
-  try {
-    await navigator.share({
-      title: 'Ticket',
-      files: [file],
-    });
-  } catch {
-    printTicket(html);
-  }
-}
