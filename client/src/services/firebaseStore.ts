@@ -420,9 +420,11 @@ export function createFirestoreStore(companyId: string) {
       async getByTable(tableId: number): Promise<OrderRequest[]> {
         const database = getDb();
         const ref = col(database, companyId, ORDERS_COL);
-        const q = query(ref, where('table_id', '==', tableId), orderBy('sent_at', 'desc'));
+        const q = query(ref, where('table_id', '==', tableId));
         const snap = await getDocs(q);
-        return docsData<OrderRequest>(snap);
+        const results = docsData<OrderRequest>(snap);
+        results.sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+        return results;
       },
 
       async create(data: Omit<OrderRequest, 'id' | 'status' | 'sent_at'>): Promise<OrderRequest> {
