@@ -11,6 +11,7 @@ import {
   limit,
   arrayUnion,
   arrayRemove,
+  writeBatch,
   type Firestore,
 } from 'firebase/firestore';
 import { getDb } from '@/firebase/init';
@@ -251,6 +252,13 @@ export function createFirestoreStore(companyId: string) {
         }, { merge: true });
       },
 
+      async getAll(): Promise<Occupation[]> {
+        const database = getDb();
+        const ref = col(database, companyId, OCCUPATIONS_COL);
+        const snap = await getDocs(ref);
+        return docsData<Occupation>(snap);
+      },
+
       async getAllActive(): Promise<Occupation[]> {
         const database = getDb();
         const ref = col(database, companyId, OCCUPATIONS_COL);
@@ -338,25 +346,17 @@ export function createFirestoreStore(companyId: string) {
     async resetAllTables(): Promise<void> {
       const database = getDb();
 
-      // 1. Deactivate all active occupations
-      const activeOccupations = await this.occupations.getAllActive();
-      await Promise.all(
-        activeOccupations.map(occ =>
-          setDoc(
-            docRef(database, companyId, OCCUPATIONS_COL, String(occ.id)),
-            {
-              active: false,
-              cliente: '',
-              comensales: 1,
-              items: [],
-              total: 0,
-              nota: '',
-              fecha_actualizacion: new Date().toISOString(),
-            },
-            { merge: true },
-          ),
-        ),
-      );
+      // 1. Delete all occupations (active and finished)
+      const allOccs = await this.occupations.getAll();
+      const batchSize = 500;
+      for (let i = 0; i < allOccs.length; i += batchSize) {
+        const batch = writeBatch(database);
+        const chunk = allOccs.slice(i, i + batchSize);
+        for (const occ of chunk) {
+          batch.delete(docRef(database, companyId, OCCUPATIONS_COL, String(occ.id)));
+        }
+        await batch.commit();
+      }
 
       // 2. Reset all tables to free, remove ultimo_servicio
       const allTables = await this.tables.getAll();
@@ -364,7 +364,7 @@ export function createFirestoreStore(companyId: string) {
         allTables.map(table =>
           setDoc(
             docRef(database, companyId, TABLES_COL, String(table.id)),
-            { status: 'free', ultimo_servicio: null },
+            { status: 'free', ultimo_servicio: null, occupation_id: null },
             { merge: true },
           ),
         ),
